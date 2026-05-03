@@ -32,5 +32,8 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Tenta rodar o server de onde ele estiver
-CMD ["node", "build_output/server/index.js"]
+# Verifica se o arquivo de build existe antes de rodar
+RUN ls -R build_output/server
+
+# Comando para rodar o servidor
+CMD ["node", "--enable-source-maps", "build_output/server/index.js"]
