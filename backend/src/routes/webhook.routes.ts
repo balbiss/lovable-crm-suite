@@ -69,7 +69,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     }
 
     // Descobre a org pelo instanceId — com cache Redis (TTL: 5min)
-    const normalizedId = instanceId.toLowerCase();
+    const normalizedId = String(instanceId).toLowerCase();
     const cacheKey = `org:by_instance:${normalizedId}`;
     let orgId = await cacheGet<string>(cacheKey);
 
