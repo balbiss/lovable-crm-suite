@@ -41,3 +41,25 @@
 .label-badge {
   @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider;
 }
+
+/* Typography Scales for Enterprise SaaS */
+@layer base {
+  html {
+    @apply text-slate-900 antialiased;
+    font-size: 14px; /* Padrão Enterprise */
+  }
+
+  @media (max-width: 768px) {
+    html {
+      font-size: 13px; /* Um pouco menor no mobile para densidade */
+    }
+  }
+
+  h1 { @apply text-xl md:text-2xl font-bold tracking-tight; }
+  h2 { @apply text-lg md:text-xl font-semibold tracking-tight; }
+  h3 { @apply text-base md:text-lg font-medium; }
+}
+
+.text-system { @apply text-sm md:text-base; }
+.text-detail { @apply text-[11px] md:text-xs text-muted-foreground; }
+.text-message { @apply text-sm md:text-[15px] leading-relaxed; }

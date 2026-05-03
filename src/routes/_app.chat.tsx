@@ -116,10 +116,10 @@ const MessageBubble = ({ message, isMe }: { message: any; isMe: boolean }) => {
       <div 
         className={cn(
           "relative max-w-[85%] px-3 py-2 rounded-lg shadow-sm mb-1",
-          isMe ? "!bg-[#dcf8c6]" : "!bg-white"
+          isMe ? "!bg-[#dcf8c6]" : "!bg-white",
+          message.optimistic && "opacity-60"
         )}
         style={{ 
-          backgroundColor: isMe ? "#dcf8c6" : "#ffffff",
           borderRadius: isMe ? "8px 0px 8px 8px" : "0px 8px 8px 8px"
         }}
       >
@@ -147,17 +147,21 @@ const MessageBubble = ({ message, isMe }: { message: any; isMe: boolean }) => {
         )}
         
         {message.content && message.type !== 'document' && message.type !== 'audio' && (
-          <p className="text-[14px] leading-snug whitespace-pre-wrap break-words pr-14 text-[#111b21]">
+          <p className="text-message leading-snug whitespace-pre-wrap break-words pr-14 text-[#111b21]">
             {message.content}
           </p>
         )}
 
         <div className="flex items-center justify-end gap-1 mt-0.5 ml-auto">
-          <span className="text-[10px] text-[#667781]">
+          <span className="text-detail">
             {formatTime(message.created_at)}
           </span>
           {isMe && (
-            <CheckCheck className={cn("size-3.5", message.status >= 4 ? "text-[#53bdeb]" : "text-[#8696a0]")} />
+            message.optimistic ? (
+              <Loader2 className="size-3 animate-spin text-[#8696a0]" />
+            ) : (
+              <CheckCheck className={cn("size-3.5", message.status >= 4 ? "text-[#53bdeb]" : "text-[#8696a0]")} />
+            )
           )}
         </div>
       </div>
@@ -202,12 +206,18 @@ function ChatPage() {
       const data = JSON.parse(e.data);
       console.log("[SSE] Nova mensagem recebida:", data);
       
+      // Feedback sonoro para novas mensagens recebidas
+      if (!data.message.is_from_me) {
+        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+        audio.play().catch(() => {});
+      }
+
       // Se a mensagem for da conversa ativa, atualiza as mensagens
       if (activeConvRef.current?.id === data.message.conversation_id) {
         setMessages(prev => {
-          // Evita duplicatas
-          if (prev.find(m => m.id === data.message.id)) return prev;
-          return [...prev, data.message];
+          // Se já existir uma versão otimista desta mensagem (mesmo conteúdo e timestamp próximo), substitui ela
+          const otherMsgs = prev.filter(m => !m.optimistic || m.content !== data.message.content);
+          return [...otherMsgs, data.message];
         });
       }
 
@@ -222,6 +232,46 @@ function ChatPage() {
       const data = JSON.parse(e.data);
       setMessages(prev => prev.map(m => m.id === data.messageId ? { ...m, status: data.status } : m));
     });
+
+    eventSource.addEventListener("lead_assigned", (e: any) => {
+      const data = JSON.parse(e.data);
+      console.log("[SSE] Lead atribuído:", data);
+      
+      // Se o lead for para o usuário logado, toca som de "sucesso" e mostra toast
+      if (data.sellerId === user?.id) {
+        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"); // Som de caixa registradora/moeda
+        audio.play().catch(() => {});
+        
+        toast.success(`🎉 NOVO LEAD: ${data.contactName || "Cliente novo"}`, {
+          description: "Você acabou de receber este lead via rodízio!",
+          duration: 10000,
+        });
+
+        // Tenta enviar notificação do navegador se tiver permissão
+        if (Notification.permission === "granted") {
+          new Notification("🎉 Novo Lead Atribuído!", {
+            body: `Você recebeu o lead ${data.contactName || "Cliente novo"}.`,
+            icon: "/pwa-192x192.png"
+          });
+        }
+        
+        loadConversations();
+      }
+    });
+
+    // Solicita permissão para notificações se ainda não tiver
+    if (Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
+    // Registra Service Worker para Push
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        console.log('[PWA] Service Worker registrado!', reg.scope);
+      }).catch(err => {
+        console.error('[PWA] Erro ao registrar SW:', err);
+      });
+    }
 
     eventSource.onerror = (err) => {
       console.error("[SSE] Erro na conexão. Reconectando em 5s...", err);
@@ -322,7 +372,21 @@ function ChatPage() {
     if (!instanceId || !activeConv || sending) return;
     if (!text.trim() && !mediaUrl) return;
 
-    setSending(true);
+    // Optimistic Update: Adiciona mensagem na UI imediatamente
+    const optimisticMsg = {
+      id: `temp-${Date.now()}`,
+      content: text,
+      type,
+      media_url: mediaUrl,
+      is_from_me: true,
+      created_at: new Date().toISOString(),
+      status: 1,
+      optimistic: true
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
+    setInputText("");
+
     try {
       const payload = {
         conversationId: activeConv.id,
@@ -341,19 +405,18 @@ function ChatPage() {
         body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
-        setInputText("");
-        loadMessages(activeConv.id);
-        // Atualiza localmente que a IA foi pausada
-        if (activeConv) setActiveConv({ ...activeConv, ai_enabled: false });
-      } else {
+      if (!res.ok) {
         const err = await res.json();
         toast.error(err.error || "Erro ao enviar.");
+        // Reverte optimistic update em caso de erro
+        setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+      } else {
+        // A mensagem real virá via SSE e substituirá a otimista
+        if (activeConv) setActiveConv({ ...activeConv, ai_enabled: false });
       }
     } catch (err) {
       toast.error("Erro de conexão.");
-    } finally {
-      setSending(false);
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
     }
   };
 
@@ -499,9 +562,9 @@ function ChatPage() {
       <div className={cn("w-full md:w-80 lg:w-96 flex-col border-r border-border bg-white", activeConv ? "hidden md:flex" : "flex")}>
         <div className="px-4 py-4 border-b border-border bg-[#f0f2f5]/50">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-xl text-[#111b21]">Conversas</h2>
+            <h2 className="font-bold text-lg text-[#111b21]">Conversas</h2>
             <button onClick={loadConversations} className="p-2 rounded-full hover:bg-black/5 text-[#54656f]">
-              <RefreshCw className="size-5" />
+              <RefreshCw className="size-4" />
             </button>
           </div>
           <div className="relative">
@@ -534,10 +597,10 @@ function ChatPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <div className="font-medium text-[#111b21] truncate">{conv.contact_name || conv.contact_phone || "Contato"}</div>
-                  <div className="text-[10px] text-[#667781]">{timeAgo(conv.last_message_at)}</div>
+                  <div className="font-medium text-system text-[#111b21] truncate">{conv.contact_name || conv.contact_phone || "Contato"}</div>
+                  <div className="text-detail">{timeAgo(conv.last_message_at)}</div>
                 </div>
-                <div className="text-xs text-[#667781] truncate mt-0.5">{conv.last_message_preview || "..."}</div>
+                <div className="text-detail truncate mt-0.5">{conv.last_message_preview || "..."}</div>
                 {conv.kanban_stage && kanbanStages.length > 0 && (
                   <div className="flex gap-1 mt-1.5">
                     <div className={cn("px-2 py-0.5 rounded text-[9px] font-bold text-white uppercase tracking-wider", kanbanStages.find(s => s.id === conv.kanban_stage)?.color || "bg-slate-400")}>

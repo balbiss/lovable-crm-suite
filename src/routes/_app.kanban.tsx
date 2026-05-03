@@ -149,7 +149,7 @@ function KanbanPage() {
             >
               <div className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm text-slate-700 uppercase tracking-tight">{stage.title}</span>
+                  <span className="font-bold text-xs text-slate-700 uppercase tracking-tight">{stage.title}</span>
                   <span className="bg-white px-2 py-0.5 rounded-full text-[10px] font-bold border border-border shadow-sm text-slate-500">
                     {grouped[stage.id]?.length || 0}
                   </span>
@@ -189,14 +189,14 @@ function LeadCard({ conv, seller }: { conv: any, seller?: any }) {
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0 overflow-hidden">
+          <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] shrink-0 overflow-hidden">
             {conv.contact_avatar ? <img src={conv.contact_avatar} className="size-full object-cover" /> : initials}
           </div>
           <div className="min-w-0">
-            <h4 className="text-sm font-bold text-slate-900 truncate group-hover:text-primary transition-colors">
+            <h4 className="text-system font-bold text-slate-900 truncate group-hover:text-primary transition-colors">
               {conv.contact_name || conv.contact_phone}
             </h4>
-            <p className="text-[10px] text-slate-500 font-medium">+{conv.contact_phone}</p>
+            <p className="text-detail font-medium">+{conv.contact_phone}</p>
           </div>
         </div>
         {conv.unread_count > 0 && (
@@ -206,18 +206,18 @@ function LeadCard({ conv, seller }: { conv: any, seller?: any }) {
         )}
       </div>
 
-      <div className="bg-slate-50 rounded-lg p-2.5 mb-3 border border-slate-100">
-        <p className="text-[11px] text-slate-600 line-clamp-2 italic leading-relaxed">
+      <div className="bg-slate-50 rounded-lg p-2 mb-3 border border-slate-100">
+        <p className="text-detail text-slate-600 line-clamp-2 italic leading-relaxed">
           "{conv.last_message_preview || "Sem mensagens"}"
         </p>
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
         <div className="flex items-center gap-1.5">
-          <div className="size-5 rounded-full bg-slate-100 grid place-items-center">
-            <User className="size-3 text-slate-400" />
+          <div className="size-4 rounded-full bg-slate-100 grid place-items-center">
+            <User className="size-2.5 text-slate-400" />
           </div>
-          <span className="text-[10px] text-slate-500 font-bold truncate max-w-[100px]">
+          <span className="text-detail font-bold truncate max-w-[100px]">
             {seller?.full_name || "Sem Atendente"}
           </span>
         </div>

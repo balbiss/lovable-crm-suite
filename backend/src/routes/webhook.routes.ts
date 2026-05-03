@@ -6,6 +6,7 @@ import { scheduleFollowUp } from '../queues/follow-up.queue';
 import { PapiService } from '../services/papi.service';
 import { broadcastToOrg } from './chat.routes';
 import { AIService } from '../services/ai.service';
+import { aiQueue } from '../queues/ai.queue';
 
 const router = Router();
 
@@ -247,93 +248,20 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
           .update({ last_customer_message_at: new Date().toISOString() })
           .eq('id', conv.id);
 
-        // --- GATILHO DA IA ---
-        console.log(`[IA] Verificando se IA está ativa para conversa ${conv.id}: ${conv.ai_enabled} (Global: ${globalAiEnabled})`);
-        
+        // --- ENFILEIRA PROCESSAMENTO DA IA (ASSÍNCRONO) ---
         if (globalAiEnabled && conv.ai_enabled) {
-          // 1. Aguarda 3 segundos em silêncio (simulando a leitura da mensagem)
-          console.log(`[IA] Simulando leitura para ${jid} (3s)...`);
-          await new Promise(resolve => setTimeout(resolve, 3000));
-
-          // 2. Inicia o status de "digitando"
-          PapiService.sendPresence(String(instanceId), String(jid), 'composing').catch(() => {});
-
-          // 3. Aguarda mais 6 segundos (simulando o tempo de escrita)
-          console.log(`[IA] Simulando digitação para ${jid} (6s)...`);
-          await new Promise(resolve => setTimeout(resolve, 6000));
-
-          // Busca o prompt da organização
-          const { data: orgData } = await supabase
-            .from('organizations')
-            .select('ai_prompt')
-            .eq('id', orgId)
-            .single();
-
-          const systemPrompt = orgData?.ai_prompt || 'Seja um assistente prestativo.';
-
-          // Busca histórico recente (últimas 100 mensagens para "Memória Infinita")
-          const { data: historyMsgs } = await supabase
-            .from('messages')
-            .select('content, is_from_me')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: false })
-            .limit(100);
-
-          const historyText = historyMsgs
-            ?.reverse()
-            .map(m => m.content) // Envia apenas o texto puro para não "contaminar" a IA com prefixos
-            .join('\n') || '';
-
-          console.log(`[IA] Gerando resposta para ${jid}...`);
-          let aiReply = await AIService.generateResponse(systemPrompt, historyText, content);
-
-          if (aiReply) {
-            // Verifica se a IA solicitou transbordo para humano
-            if (aiReply.includes('[TRANSBORDO]')) {
-              console.log(`[IA] Detectado pedido de transbordo para ${jid}`);
-              aiReply = aiReply.replace('[TRANSBORDO]', '').trim();
-              
-              // Desativa a IA e chama o rodízio
-              await supabase.from('conversations')
-                .update({ ai_enabled: false })
-                .eq('id', conv.id);
-                
-              enqueueRotation(orgId, conv.id, contactName).catch(() => {});
-            }
-
-            console.log(`[IA] Resposta gerada: ${aiReply.substring(0, 50)}...`);
-            
-            // Envia via PAPI
-            try {
-              const sendRes = await PapiService.sendText(String(instanceId), String(jid), aiReply);
-
-              if (sendRes) {
-                // Salva a resposta da IA no banco
-                const { data: savedAiMsg } = await supabase.from('messages').insert({
-                  conversation_id: conv.id,
-                  papi_message_id: sendRes.key?.id || `ai_${Date.now()}`,
-                  org_id: orgId,
-                  content: aiReply,
-                  is_from_me: true,
-                  type: 'text',
-                  status: 2 // enviado
-                }).select().single();
-
-                if (savedAiMsg) {
-                  broadcastToOrg(orgId, 'new_message', {
-                    message: savedAiMsg,
-                    conversation: { ...conv, last_message_preview: aiReply, last_message_at: new Date().toISOString() }
-                  });
-                }
-              }
-            } catch (err: any) {
-              console.error('[IA] Erro ao enviar resposta via PAPI:', err.message);
-            }
-          }
-        } else {
-          console.log(`[IA] IA ignorada: ai_enabled está ${conv.ai_enabled}`);
+          console.log(`[IA] Enfileirando processamento para ${jid}`);
+          aiQueue.add('process_response', {
+            orgId,
+            conversationId: conv.id,
+            contactName,
+            content,
+            jid,
+            instanceId,
+            globalAiEnabled
+          }).catch(err => console.error('[IA] Erro ao enfileirar:', err.message));
         }
-        // --- FIM GATILHO IA ---
+        // --- FIM ENFILEIRAMENTO IA ---
 
         // Enfileira rodízio se não houver atendente e IA estiver desligada (ou como backup)
         if (!conv.assigned_to && !conv.ai_enabled) {

@@ -17,8 +17,9 @@ import chatRoutes from './routes/chat.routes';
 import webhookRoutes from './routes/webhook.routes';
 import aiRoutes from './routes/ai.routes';
 
-// Inicializa o Worker de rodízio (Redis/BullMQ) ao subir o servidor
+// Inicializa Workers (Redis/BullMQ)
 import './queues/rotation.queue';
+import './queues/ai.queue';
 
 // Health check
 app.get('/health', (_req, res) => res.send('Backend is running!'));
