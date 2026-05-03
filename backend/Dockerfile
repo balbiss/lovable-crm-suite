@@ -2,10 +2,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+# Copia os arquivos de configuração de dentro da pasta backend
+COPY backend/package*.json ./
 RUN npm install
 
-COPY . .
+# Copia todo o conteúdo da pasta backend
+COPY backend/ .
 
 RUN npm run build
 
