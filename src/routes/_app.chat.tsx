@@ -22,6 +22,16 @@ import {
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/chat")({
@@ -169,7 +179,9 @@ function ChatPage() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [summaryModal, setSummaryModal] = useState({ open: false, content: "" });
   const [kanbanStages, setKanbanStages] = useState<any[]>([]);
-  const [showNotes, setShowNotes] = useState(false);
+  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [convToDelete, setConvToDelete] = useState<string | null>(null);
   const [notes, setNotes] = useState<any[]>([]);
   const [newNote, setNewNote] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -395,7 +407,13 @@ function ChatPage() {
   };
 
   const deleteConversation = async (id: string) => {
-    if (!confirm("Tem certeza que deseja apagar esta conversa?")) return;
+    setConvToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!convToDelete) return;
+    const id = convToDelete;
     try {
       await supabase.from("messages").delete().eq("conversation_id", id);
       await supabase.from("conversations").delete().eq("id", id);
@@ -404,6 +422,9 @@ function ChatPage() {
       toast.success("Conversa excluída.");
     } catch {
       toast.error("Erro ao excluir.");
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setConvToDelete(null);
     }
   };
 
