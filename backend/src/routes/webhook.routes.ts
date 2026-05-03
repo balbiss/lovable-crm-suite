@@ -51,14 +51,14 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     
     // Suporte a mídia (Base64)
     let content: string = '';
-    let type: string = 'text';
+    let messageType: string = 'text';
     let mediaUrl: string | null = null;
 
     if (msgData?.media?.base64) {
-      type = msgData.media.mimetype?.split('/')[0] || 'document';
+      messageType = msgData.media.mimetype?.split('/')[0] || 'document';
       content = msgData.message?.imageMessage?.caption 
         || msgData.message?.videoMessage?.caption 
-        || `[${type}]`;
+        || `[${messageType}]`;
       // No futuro, podemos fazer upload do base64 para o Supabase Storage e salvar a URL em mediaUrl
     } else {
       content = msgData?.message?.conversation
@@ -133,7 +133,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
         org_id: orgId,
         content,
         is_from_me: fromMe,
-        type: type,
+        type: messageType,
         status: fromMe ? 2 : 1,
       })
       .select()
