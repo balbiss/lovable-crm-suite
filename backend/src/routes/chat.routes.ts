@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { PapiService } from '../services/papi.service';
+import { enqueueRotation } from '../queues/rotation.queue';
 
 const router = Router();
 
@@ -99,19 +100,21 @@ router.post('/send', async (req, res) => {
   try {
     let papiResponse;
 
+    const mediaBase64 = mediaUrl?.includes('base64,') ? mediaUrl.split('base64,')[1] : mediaUrl;
+
     // 1. Envia via PAPI de acordo com o tipo
     switch (type) {
       case 'image':
-        papiResponse = await PapiService.sendImage(instanceId, jid, { base64: mediaUrl?.split(',')[1] || mediaUrl, caption: content });
+        papiResponse = await PapiService.sendImage(instanceId, jid, { base64: mediaBase64, caption: content });
         break;
       case 'video':
-        papiResponse = await PapiService.sendVideo(instanceId, jid, { base64: mediaUrl?.split(',')[1] || mediaUrl, caption: content });
+        papiResponse = await PapiService.sendVideo(instanceId, jid, { base64: mediaBase64, caption: content });
         break;
       case 'audio':
-        papiResponse = await PapiService.sendAudio(instanceId, jid, { base64: mediaUrl?.split(',')[1] || mediaUrl, ptt: true });
+        papiResponse = await PapiService.sendAudio(instanceId, jid, { base64: mediaBase64, ptt: true });
         break;
       case 'document':
-        papiResponse = await PapiService.sendDocument(instanceId, jid, { url: mediaUrl, filename: 'documento' });
+        papiResponse = await PapiService.sendDocument(instanceId, jid, { base64: mediaBase64, filename: req.body.filename || 'arquivo' });
         break;
       default:
         papiResponse = await PapiService.sendText(instanceId, jid, content);
@@ -147,6 +150,76 @@ router.post('/send', async (req, res) => {
     return res.json({ ok: true, message: savedMsg });
   } catch (error: any) {
     console.error('[CHAT] Erro ao enviar mensagem:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/** Atualiza dados da conversa (etiquetas, status, etc) */
+router.patch('/conversations/:conversationId', async (req, res) => {
+  const { conversationId } = req.params;
+  const updates = req.body;
+
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .update(updates)
+      .eq('id', conversationId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/** Atribui a um atendente ou envia para rodízio */
+router.post('/conversations/:conversationId/assign', async (req, res) => {
+  const { conversationId } = req.params;
+  const { userId, orgId, contactName, mode } = req.body; // mode: 'manual' | 'rotation'
+
+  try {
+    if (mode === 'rotation') {
+      await enqueueRotation(orgId, conversationId, contactName);
+      return res.json({ ok: true, message: 'Enviado para fila de rodízio' });
+    }
+
+    const { error } = await supabase
+      .from('conversations')
+      .update({ 
+        assigned_to: userId,
+        status: 'atendimento'
+      })
+      .eq('id', conversationId);
+
+    if (error) throw error;
+
+    broadcastToOrg(orgId, 'lead_assigned', {
+      conversationId,
+      sellerId: userId
+    });
+
+    return res.json({ ok: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/** Deleta uma conversa e suas mensagens */
+router.delete('/conversations/:conversationId', async (req, res) => {
+  const { conversationId } = req.params;
+
+  try {
+    // 1. Deleta mensagens primeiro (foreign key)
+    await supabase.from('messages').delete().eq('conversation_id', conversationId);
+    
+    // 2. Deleta a conversa
+    const { error } = await supabase.from('conversations').delete().eq('id', conversationId);
+
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
 });

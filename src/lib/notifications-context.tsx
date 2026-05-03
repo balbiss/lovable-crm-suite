@@ -25,19 +25,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     [dismiss]
   );
 
-  // Simulated incoming push every ~25s
+  // Notifications logic (real-time listeners can be added here)
   useEffect(() => {
-    const samples = [
-      { title: "Novo lead atribuído", body: "Carlos Mendes — interesse em apto Pinheiros" },
-      { title: "Mensagem recebida", body: "Juliana respondeu sobre orçamento" },
-      { title: "Follow-up sugerido", body: "Eduardo está há 2h sem resposta" },
-    ];
-    const t = setInterval(() => {
-      const s = samples[Math.floor(Math.random() * samples.length)];
-      push(s);
-    }, 25000);
-    return () => clearInterval(t);
-  }, [push]);
+    // Ready for real-time hooks
+  }, []);
 
   return <Ctx.Provider value={{ toasts, push, dismiss }}>{children}</Ctx.Provider>;
 }

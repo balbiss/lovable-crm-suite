@@ -202,9 +202,9 @@ export class PapiService {
   }
 
   /**
-   * Envia um documento
+   * Envia um documento (PDF, DOC, etc)
    */
-  static async sendDocument(instanceId: string, jid: string, data: { url: string; filename?: string; mimetype?: string }) {
+  static async sendDocument(instanceId: string, jid: string, data: { url?: string; base64?: string; filename?: string; mimetype?: string }) {
     const id = instanceId.toLowerCase();
     try {
       const response = await papiClient.post(`/api/instances/${id}/send-document`, {
@@ -213,7 +213,7 @@ export class PapiService {
       });
       return response.data;
     } catch (error: any) {
-      console.error(`Error sending document to ${jid}:`, error.response?.data || error.message);
+      console.error('Error sending document:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -298,12 +298,12 @@ export class PapiService {
   }
 
   /**
-   * Obtém a foto de perfil de um contato
+   * Obtém a foto de perfil de um contato ou grupo
    */
   static async getProfilePicture(instanceId: string, jid: string) {
     const id = instanceId.toLowerCase();
     try {
-      const response = await papiClient.get(`/api/instances/${id}/profile-picture?jid=${jid}`);
+      const response = await papiClient.get(`/api/instances/${id}/profile-picture/${jid}`);
       return response.data?.url || null;
     } catch (error: any) {
       console.error(`Error getting profile picture for ${jid}:`, error.response?.data || error.message);
