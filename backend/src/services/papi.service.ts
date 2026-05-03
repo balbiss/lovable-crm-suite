@@ -296,4 +296,18 @@ export class PapiService {
       throw error;
     }
   }
+
+  /**
+   * Obtém a foto de perfil de um contato
+   */
+  static async getProfilePicture(instanceId: string, jid: string) {
+    const id = instanceId.toLowerCase();
+    try {
+      const response = await papiClient.get(`/api/instances/${id}/profile-picture?jid=${jid}`);
+      return response.data?.url || null;
+    } catch (error: any) {
+      console.error(`Error getting profile picture for ${jid}:`, error.response?.data || error.message);
+      return null;
+    }
+  }
 }
