@@ -99,7 +99,13 @@ export class AIService {
         messages: [
           {
             role: 'system',
-            content: systemPrompt || 'Você é um assistente virtual. Seja cordial e prestativo.'
+            content: `${systemPrompt || 'Você é um assistente virtual. Seja cordial e prestativo.'}
+            
+            REGRAS OBRIGATÓRIAS:
+            1. NÃO use prefixos como "Vendedor:", "IA:" ou "Assistente:".
+            2. Responda DIRETAMENTE o que o cliente perguntou.
+            3. Mantenha um tom natural de WhatsApp.
+            4. Se o cliente pedir expressamente para falar com um atendente humano, responda que vai encaminhar e inclua a palavra-chave [TRANSBORDO] no final da sua resposta.`
           },
           {
             role: 'user',

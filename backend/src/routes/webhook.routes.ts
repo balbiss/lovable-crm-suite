@@ -55,6 +55,14 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     const jid: string = payload.data?.key?.remoteJid || msgData.from || msgData.remoteJid || '';
     const fromMe: boolean = payload.data?.key?.fromMe || msgData.isFromMe || false;
     const papiMsgId: string = payload.data?.key?.id || msgData.id || '';
+
+    // Trava de Deduplicação (evita processar a mesma mensagem duas vezes)
+    if (papiMsgId) {
+      const lockKey = `msg_lock:${papiMsgId}`;
+      const isLocked = await cacheGet(lockKey);
+      if (isLocked) return res.json({ ok: true, message: 'Mensagem já processada' });
+      await cacheSet(lockKey, '1', 60); // trava por 60 segundos
+    }
     
     // Suporte a conteúdo e mídia
     let content: string = '';
@@ -258,13 +266,26 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
 
           const historyText = historyMsgs
             ?.reverse()
-            .map(m => `${m.is_from_me ? 'Vendedor' : 'Cliente'}: ${m.content}`)
+            .map(m => m.content) // Envia apenas o texto puro para não "contaminar" a IA com prefixos
             .join('\n') || '';
 
           console.log(`[IA] Gerando resposta para ${jid}...`);
-          const aiReply = await AIService.generateResponse(systemPrompt, historyText, content);
+          let aiReply = await AIService.generateResponse(systemPrompt, historyText, content);
 
           if (aiReply) {
+            // Verifica se a IA solicitou transbordo para humano
+            if (aiReply.includes('[TRANSBORDO]')) {
+              console.log(`[IA] Detectado pedido de transbordo para ${jid}`);
+              aiReply = aiReply.replace('[TRANSBORDO]', '').trim();
+              
+              // Desativa a IA e chama o rodízio
+              await supabase.from('conversations')
+                .update({ ai_enabled: false })
+                .eq('id', conv.id);
+                
+              enqueueRotation(orgId, conv.id, contactName).catch(() => {});
+            }
+
             console.log(`[IA] Resposta gerada: ${aiReply.substring(0, 50)}...`);
             
             // Envia via PAPI
