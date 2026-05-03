@@ -105,7 +105,7 @@ router.post('/send', async (req, res) => {
       .from('messages')
       .insert({
         conversation_id: conversationId,
-        org_id,
+        org_id: orgId,
         content,
         is_from_me: true,
         type: 'text',

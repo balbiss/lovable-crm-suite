@@ -2,7 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import dotenv from 'dotenv';
 import { supabase } from '../lib/supabase';
 import { redisConnection, getNextRotationIndex } from '../lib/redis';
-import { broadcastToOrg } from '../routes/webhook.routes';
+import { broadcastToOrg } from '../routes/chat.routes';
 
 dotenv.config();
 
