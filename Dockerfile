@@ -1,25 +1,22 @@
 # Stage 1: Build
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
+# Instala dependências
 COPY package*.json ./
 RUN npm install
 
+# Copia o código e faz o build
 COPY . .
 RUN npm run build
 
-# Garante que temos uma pasta unificada para o runtime, seja .output ou dist
-RUN if [ -d ".output" ]; then mv .output build_output; \
-    elif [ -d "dist" ]; then mv dist build_output; \
-    else mkdir build_output && echo "Nenhuma pasta de build encontrada" > build_output/error.txt; fi
-
 # Stage 2: Runtime
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
-# Em sistemas SSR, às vezes as dependências de build são necessárias no runtime
+# Copia TUDO do build (necessário para o Vinxi/SSR)
 COPY --from=build /app ./
 
 EXPOSE 3000
@@ -28,5 +25,5 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Usa o comando oficial do TanStack Start/Vinxi
-CMD ["npx", "vinxi", "start"]
+# Tenta rodar o index.mjs, se não existir tenta o index.js
+CMD ["sh", "-c", "if [ -f .output/server/index.mjs ]; then node .output/server/index.mjs; else node .output/server/index.js; fi"]
