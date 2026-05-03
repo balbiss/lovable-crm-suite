@@ -87,6 +87,8 @@ export class AIService {
       console.error('[AI] Erro ao transcrever áudio:', error.message);
       throw error;
     }
+  }
+
   /**
    * Gera uma mensagem de follow-up contextual
    */
