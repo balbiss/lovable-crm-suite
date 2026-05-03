@@ -3,7 +3,7 @@ FROM oven/bun:1 AS build
 
 WORKDIR /app
 
-# Instala dependências usando Bun (muito mais rápido)
+# Instala dependências
 COPY package*.json bun.lockb ./
 RUN bun install
 
@@ -19,11 +19,17 @@ WORKDIR /app
 # Copia TUDO do build
 COPY --from=build /app ./
 
+# ARRANJO DE PASTAS: O Vinxi espera que os assets fiquem em uma pasta acessível
+# Vamos garantir que dist/client seja linkado como a pasta de arquivos estáticos
+RUN mkdir -p .output && \
+    ln -s ../dist/server .output/server && \
+    ln -s ../dist/client .output/public
+
 EXPOSE 3000
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# O TanStack Start compilado para Cloudflare/Node roda assim com Bun:
-CMD ["bun", "run", "dist/server/index.js"]
+# Rodamos a partir do link que criamos para manter a compatibilidade
+CMD ["bun", "run", ".output/server/index.js"]
