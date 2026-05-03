@@ -432,6 +432,7 @@ function ChatPage() {
                   Configure uma instância WhatsApp nas Configurações para enviar mensagens.
                 </div>
               )}
+              <div className="flex items-end gap-2">
                 <input
                   type="file"
                   id="file-upload"
