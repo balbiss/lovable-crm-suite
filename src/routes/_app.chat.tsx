@@ -633,6 +633,7 @@ function ChatPage() {
                       </div>
                     </>
                   )}
+                </div>
                 <button 
                   onClick={() => setShowNotes(!showNotes)} 
                   className={cn("p-2 rounded-full transition-colors", showNotes ? "bg-amber-100 text-amber-600" : "hover:bg-black/5")} 
