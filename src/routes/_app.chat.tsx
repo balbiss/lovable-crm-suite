@@ -28,14 +28,39 @@ export const Route = createFileRoute("/_app/chat")({
 
 const API_URL = import.meta.env.VITE_API_URL || "https://api-crminoovaweb.inoovaweb.com.br/api";
 
-const AVAILABLE_LABELS = [
-  { name: "Novo", color: "bg-blue-500" },
-  { name: "Quente", color: "bg-orange-500" },
-  { name: "Frio", color: "bg-slate-500" },
-  { name: "Agendado", color: "bg-violet-500" },
-  { name: "Fechado", color: "bg-emerald-500" },
-  { name: "Perdido", color: "bg-rose-500" },
-];
+const SummaryModal = ({ isOpen, onClose, summary }: { isOpen: boolean; onClose: () => void; summary: string }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-white/20">
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-slate-50">
+          <div className="flex items-center gap-2 font-bold text-slate-800">
+            <Sparkles className="size-5 text-primary" />
+            Resumo Inteligente
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-lg transition-colors">
+            <RefreshCw className="size-4 text-slate-500" />
+          </button>
+        </div>
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
+          <div className="prose prose-slate prose-sm max-w-none">
+            {summary.split('\n').map((line, i) => (
+              <p key={i} className="mb-2 text-slate-600 leading-relaxed">{line}</p>
+            ))}
+          </div>
+        </div>
+        <div className="px-6 py-4 bg-slate-50 border-t border-border flex justify-end">
+          <button 
+            onClick={onClose}
+            className="px-6 py-2 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/20"
+          >
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function formatTime(at: string | number) {
   if (!at) return "";
@@ -139,6 +164,8 @@ function ChatPage() {
   const [sending, setSending] = useState(false);
   const [sellers, setSellers] = useState<any[]>([]);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [summaryModal, setSummaryModal] = useState({ open: false, content: "" });
+  const [kanbanStages, setKanbanStages] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -205,8 +232,9 @@ function ChatPage() {
   }, [messages]);
 
   const fetchInstance = async () => {
-    const { data } = await supabase.from("organizations").select("papi_instance_id").eq("id", orgId).single();
+    const { data } = await supabase.from("organizations").select("papi_instance_id, kanban_config").eq("id", orgId).single();
     if (data?.papi_instance_id) setInstanceId(data.papi_instance_id);
+    if (data?.kanban_config) setKanbanStages(data.kanban_config);
   };
 
   const loadSellers = async () => {
@@ -319,7 +347,7 @@ function ChatPage() {
       const data = await res.json();
       if (data.summary) {
         toast.dismiss(toastId);
-        alert(`Resumo da Conversa:\n\n${data.summary}`);
+        setSummaryModal({ open: true, content: data.summary });
       }
     } catch {
       toast.error("Erro ao resumir.");
@@ -369,19 +397,20 @@ function ChatPage() {
     }
   };
 
-  const toggleLabel = async (conv: any, labelName: string) => {
-    const newLabels = conv.labels?.includes(labelName)
-      ? conv.labels.filter((l: string) => l !== labelName)
-      : [...(conv.labels || []), labelName];
-
+  const toggleLabel = async (conv: any, stageId: string) => {
     try {
-      const { error } = await supabase.from("conversations").update({ labels: newLabels }).eq("id", conv.id);
+      const { error } = await supabase
+        .from("conversations")
+        .update({ kanban_stage: stageId })
+        .eq("id", conv.id);
+      
       if (!error) {
-        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, labels: newLabels } : c));
-        if (activeConv?.id === conv.id) setActiveConv({ ...activeConv, labels: newLabels });
+        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, kanban_stage: stageId } : c));
+        if (activeConv?.id === conv.id) setActiveConv({ ...activeConv, kanban_stage: stageId });
+        toast.success("Fase atualizada");
       }
     } catch {
-      toast.error("Erro ao atualizar etiquetas.");
+      toast.error("Erro ao atualizar fase.");
     }
   };
 
@@ -449,11 +478,11 @@ function ChatPage() {
                   <div className="text-[10px] text-[#667781]">{timeAgo(conv.last_message_at)}</div>
                 </div>
                 <div className="text-xs text-[#667781] truncate mt-0.5">{conv.last_message_preview || "..."}</div>
-                {conv.labels?.length > 0 && (
+                {conv.kanban_stage && kanbanStages.length > 0 && (
                   <div className="flex gap-1 mt-1.5">
-                    {conv.labels.slice(0, 3).map((l: string) => (
-                      <div key={l} className={cn("size-2 rounded-full", AVAILABLE_LABELS.find(al => al.name === l)?.color || "bg-slate-400")} />
-                    ))}
+                    <div className={cn("px-2 py-0.5 rounded text-[9px] font-bold text-white uppercase tracking-wider", kanbanStages.find(s => s.id === conv.kanban_stage)?.color || "bg-slate-400")}>
+                      {kanbanStages.find(s => s.id === conv.kanban_stage)?.title}
+                    </div>
                   </div>
                 )}
               </div>
@@ -552,14 +581,14 @@ function ChatPage() {
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setActiveMenu(null)} />
                       <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-border rounded-xl shadow-xl z-50 py-2 animate-in fade-in zoom-in duration-200">
-                        {AVAILABLE_LABELS.map(l => (
+                        {kanbanStages.map(l => (
                           <button 
-                            key={l.name} 
-                            onClick={() => toggleLabel(activeConv, l.name)} 
+                            key={l.id} 
+                            onClick={() => toggleLabel(activeConv, l.id)} 
                             className="w-full px-4 py-2.5 text-left text-sm hover:bg-[#f5f6f6] flex items-center justify-between"
                           >
-                            <span className="flex items-center gap-2"><div className={cn("size-2.5 rounded-full", l.color)} /> {l.name}</span>
-                            {activeConv.labels?.includes(l.name) && <Check className="size-4 text-emerald-500" />}
+                            <span className="flex items-center gap-2"><div className={cn("size-2.5 rounded-full", l.color)} /> {l.title}</span>
+                            {activeConv.kanban_stage === l.id && <Check className="size-4 text-emerald-500" />}
                           </button>
                         ))}
                       </div>
@@ -611,6 +640,12 @@ function ChatPage() {
           </>
         )}
       </div>
+
+      <SummaryModal 
+        isOpen={summaryModal.open} 
+        summary={summaryModal.content} 
+        onClose={() => setSummaryModal({ ...summaryModal, open: false })} 
+      />
     </div>
   );
 }
