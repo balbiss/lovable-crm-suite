@@ -28,5 +28,9 @@ COPY --from=build /app/build_output ./build_output
 
 EXPOSE 3000
 
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
+
 # Tenta rodar o server de onde ele estiver
 CMD ["node", "build_output/server/index.js"]
