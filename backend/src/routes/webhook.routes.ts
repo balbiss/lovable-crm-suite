@@ -11,11 +11,16 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
   const { instanceId } = req.params;
   const payload = req.body;
 
-  console.log(`[WEBHOOK] Evento recebido para instância ${instanceId}:`, payload?.type);
+  console.log(`[WEBHOOK] Evento recebido para ${instanceId}:`, JSON.stringify(payload, null, 2));
+
+  const type = payload?.type || payload?.event;
+  if (!type) {
+    return res.status(200).json({ ok: true, message: 'Payload sem tipo identificado' });
+  }
 
   try {
     // Processa eventos de status de mensagem (entregue, lida, etc)
-    if (payload?.type === 'message_status') {
+    if (type === 'message_status') {
       const { id: papiMessageId, status } = payload.data;
       console.log(`[WEBHOOK] Status de mensagem ${papiMessageId}: ${status}`);
       
@@ -36,7 +41,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     }
 
     // Só processa eventos de mensagem recebida
-    if (payload?.type !== 'message') {
+    if (!['messages', 'message'].includes(type)) {
       return res.json({ ok: true });
     }
 
