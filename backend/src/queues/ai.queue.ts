@@ -33,15 +33,19 @@ export const aiWorker = new Worker(
     PapiService.sendPresence(instanceId, jid, 'composing').catch(() => {});
     await new Promise(resolve => setTimeout(resolve, 6000));
 
-    // 2. Busca o prompt e histórico
-    const { data: orgData } = await supabase.from('organizations').select('ai_prompt').eq('id', orgId).single();
+    // 2. Busca o prompt, tom de voz e histórico
+    const { data: orgData } = await supabase.from('organizations').select('ai_prompt, ai_tone').eq('id', orgId).single();
     const { data: historyMsgs } = await supabase.from('messages').select('content, is_from_me').eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(50);
 
-    const systemPrompt = orgData?.ai_prompt || 'Seja um assistente prestativo.';
+    const systemPrompt = orgData?.ai_prompt || 'Você é um assistente virtual da InoovaWeb.';
+    const aiTone = orgData?.ai_tone || 'Amigável';
+    
+    const fullPrompt = `Tom de Voz: ${aiTone}\n\nInstruções Principais:\n${systemPrompt}`;
+
     const historyText = historyMsgs?.reverse().map(m => m.content).join('\n') || '';
 
     // 3. Geração da Resposta
-    let aiReply = await AIService.generateResponse(systemPrompt, historyText, content);
+    let aiReply = await AIService.generateResponse(fullPrompt, historyText, content);
 
     if (aiReply) {
       if (aiReply.includes('[TRANSBORDO]')) {

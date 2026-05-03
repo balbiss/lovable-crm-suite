@@ -593,28 +593,65 @@ function PapiSettings() {
 }
 
 function AiPromptSettings() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [tone, setTone] = useState("Amigável");
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!user?.orgId) return;
+      const { data } = await supabase
+        .from('organizations')
+        .select('ai_prompt, ai_tone')
+        .eq('id', user.orgId)
+        .single();
+      
+      if (data) {
+        setPrompt(data.ai_prompt || "");
+        setTone(data.ai_tone || "Amigável");
+      }
+      setLoading(false);
+    };
+    loadSettings();
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user?.orgId) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('organizations')
+      .update({ ai_prompt: prompt, ai_tone: tone })
+      .eq('id', user.orgId);
+    
+    if (error) {
+      toast.error("Erro ao salvar configurações de IA.");
+    } else {
+      toast.success("Configurações de IA salvas com sucesso!");
+    }
+    setSaving(false);
+  };
+
+  if (loading) return <div className="p-12 text-center text-muted-foreground">Carregando configurações de IA...</div>;
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <SectionHeader
         title="Prompt da IA"
         description="Defina como a IA deve se comportar nos atendimentos automáticos e nas sugestões."
       />
-      <Field label="Modelo">
-        <select className={inputClass}>
-          <option>GPT-4o (recomendado)</option>
-          <option>GPT-4o mini</option>
-          <option>Claude 3.5 Sonnet</option>
-        </select>
-      </Field>
+      
       <Field label="Tom de voz">
         <div className="flex flex-wrap gap-2">
-          {["Profissional", "Amigável", "Consultivo", "Direto"].map((t, i) => (
+          {["Profissional", "Amigável", "Consultivo", "Direto"].map((t) => (
             <button
               key={t}
+              onClick={() => setTone(t)}
               className={cn(
-                "px-3 py-1.5 rounded-full text-sm border",
-                i === 1
-                  ? "bg-primary/10 border-primary text-primary font-medium"
+                "px-3 py-1.5 rounded-full text-sm border transition-all",
+                tone === t
+                  ? "bg-primary/10 border-primary text-primary font-medium shadow-sm"
                   : "bg-card border-border hover:border-primary/30"
               )}
             >
@@ -623,18 +660,25 @@ function AiPromptSettings() {
           ))}
         </div>
       </Field>
+
       <Field
         label="Instruções principais"
-        hint="Esse texto é injetado no system prompt em todas as conversas."
+        hint="O tom de voz selecionado e estas instruções são a lei absoluta para a assistente."
       >
         <textarea
-          className={cn(inputClass, "min-h-32 font-mono text-xs leading-relaxed")}
-          defaultValue={`Você é a assistente virtual da InoovaWeb. Seja cordial, objetiva e empática.
-- Sempre confirme nome e interesse principal antes de qualificar
-- Não invente preços; consulte a tabela atualizada
-- Encaminhe para um humano em casos complexos`}
+          className={cn(inputClass, "min-h-48 font-mono text-xs leading-relaxed border border-border/50 bg-muted/30 focus:bg-background transition-colors")}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Ex: Você é a assistente da InoovaWeb. Seja cordial e encaminhe para o vendedor caso o cliente peça preços específicos."
         />
       </Field>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving} className="rounded-xl px-8 shadow-soft">
+          {saving ? <Loader2 className="size-4 animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
+          Salvar Configurações de IA
+        </Button>
+      </div>
     </div>
   );
 }
