@@ -1,57 +1,24 @@
 services:
-  crm-frontend:
-    image: crm-frontend:latest
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.crm-frontend.rule=Host(`painel.inoovaweb.com.br`)"
-        - "traefik.http.routers.crm-frontend.entrypoints=websecure"
-        - "traefik.http.routers.crm-frontend.tls=true"
-        - "traefik.http.routers.crm-frontend.tls.certresolver=letsencryptresolver"
-        - "traefik.http.services.crm-frontend.loadbalancer.server.port=80"
-        - "traefik.docker.network=inoovawebpro"
-    environment:
-      - HOST=0.0.0.0
-      - PORT=3000
-    networks:
-      - inoovawebpro
-
   crm-backend:
-    image: crm-backend:latest
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.crm-backend.rule=Host(`api-crminoovaweb.inoovaweb.com.br`)"
-        - "traefik.http.routers.crm-backend.entrypoints=websecure"
-        - "traefik.http.routers.crm-backend.tls=true"
-        - "traefik.http.routers.crm-backend.tls.certresolver=letsencryptresolver"
-        - "traefik.http.services.crm-backend.loadbalancer.server.port=3001"
-        - "traefik.docker.network=inoovawebpro"
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "3001:3001"
     environment:
-      - PORT=3001
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - NODE_ENV=production
+    env_file:
+      - backend/.env
+    restart: always
     networks:
-      - inoovawebpro
-    depends_on:
-      - redis
+      - crm_internal
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes
+    restart: always
     networks:
-      - inoovawebpro
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
+      - crm_internal
 
 networks:
-  inoovawebpro:
-    external: true
+  crm_internal:
+    driver: bridge
