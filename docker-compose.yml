@@ -9,6 +9,7 @@ services:
   # CRM Backend
   # ===========================================
   crm-backend:
+    image: crm-backend:latest
     build:
       context: ./backend
     deploy:
@@ -40,6 +41,7 @@ services:
   # CRM Frontend
   # ===========================================
   crm-frontend:
+    image: crm-frontend:latest
     build:
       context: .
     deploy:
