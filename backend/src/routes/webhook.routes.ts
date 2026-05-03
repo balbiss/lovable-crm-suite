@@ -133,7 +133,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
 
     // 2. Se não tem foto, tenta buscar na PAPI
     if (!avatarUrl && !fromMe) {
-      avatarUrl = await PapiService.getProfilePicture(instanceId, jid);
+      avatarUrl = await PapiService.getProfilePicture(instanceId as string, jid);
     }
 
     // 3. Upsert da conversa com o avatar
