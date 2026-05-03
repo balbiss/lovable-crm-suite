@@ -63,7 +63,6 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     }
 
     const contactName: string = msgData?.pushName || jid.split('@')[0];
-    const papiMsgId: string = msgData?.key?.id ?? '';
 
     if (!jid || jid.includes('@g.us')) {
       return res.json({ ok: true }); // ignora grupos
