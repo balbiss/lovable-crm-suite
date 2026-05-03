@@ -120,7 +120,22 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       await cacheSet(cacheKey, orgId, 300); // cache por 5 minutos
     }
 
-    // Upsert da conversa
+    // 1. Busca a conversa existente para ver se já tem foto
+    const { data: existingConv } = await supabase
+      .from('conversations')
+      .select('contact_avatar')
+      .eq('org_id', orgId)
+      .eq('jid', jid)
+      .single();
+
+    let avatarUrl = existingConv?.contact_avatar;
+
+    // 2. Se não tem foto, tenta buscar na PAPI
+    if (!avatarUrl && !fromMe) {
+      avatarUrl = await PapiService.getProfilePicture(instanceId, jid);
+    }
+
+    // 3. Upsert da conversa com o avatar
     const { data: conv, error: convError } = await supabase
       .from('conversations')
       .upsert(
@@ -129,6 +144,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
           jid,
           contact_name: contactName,
           contact_phone: jid.replace('@s.whatsapp.net', ''),
+          contact_avatar: avatarUrl,
           last_message_preview: content,
           last_message_at: new Date().toISOString(),
           unread_count: fromMe ? 0 : 1,

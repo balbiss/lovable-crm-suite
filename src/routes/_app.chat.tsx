@@ -34,6 +34,7 @@ interface Conversation {
   jid: string;
   contact_name: string | null;
   contact_phone: string | null;
+  contact_avatar: string | null;
   unread_count: number;
   last_message_at: string;
   last_message_preview: string | null;
@@ -345,8 +346,12 @@ function ChatPage() {
                     activeConv?.id === conv.id ? "bg-accent" : "hover:bg-accent/50"
                   )}
                 >
-                  <div className={cn("size-12 rounded-full flex-shrink-0 grid place-items-center text-white font-bold text-sm", color)}>
-                    {initials}
+                  <div className={cn("size-12 rounded-full flex-shrink-0 overflow-hidden bg-muted flex items-center justify-center", !conv.contact_avatar && color)}>
+                    {conv.contact_avatar ? (
+                      <img src={conv.contact_avatar} alt="Avatar" className="size-full object-cover" />
+                    ) : (
+                      <span className="text-white font-bold text-sm">{initials}</span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
@@ -387,8 +392,12 @@ function ChatPage() {
               >
                 <ArrowLeft className="size-5" />
               </button>
-              <div className={cn("size-10 rounded-full flex-shrink-0 grid place-items-center text-white font-bold text-sm", avatarColor(activeConv.jid))}>
-                {getInitials(activeConv.contact_name, activeConv.contact_phone)}
+              <div className={cn("size-10 rounded-full flex-shrink-0 overflow-hidden bg-muted flex items-center justify-center", !activeConv.contact_avatar && avatarColor(activeConv.jid))}>
+                {activeConv.contact_avatar ? (
+                  <img src={activeConv.contact_avatar} alt="Avatar" className="size-full object-cover" />
+                ) : (
+                  <span className="text-white font-bold text-sm">{getInitials(activeConv.contact_name, activeConv.contact_phone)}</span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold truncate">
