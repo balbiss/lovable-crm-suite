@@ -6,17 +6,31 @@ import { PushToastStack } from "./push-toast-stack";
 import { useAuth } from "@/lib/auth-context";
 
 export function AppLayout() {
-  const { user, canAccess } = useAuth();
+  const { user, loading, canAccess } = useAuth();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
+    // Aguarda o Supabase restaurar a sessão antes de redirecionar
+    if (loading) return;
     if (!user) {
       navigate({ to: "/login" });
     } else if (!canAccess(path)) {
       navigate({ to: "/dashboard" });
     }
-  }, [user, path, canAccess, navigate]);
+  }, [user, loading, path, canAccess, navigate]);
+
+  // Exibe spinner enquanto a sessão está sendo restaurada
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground">Carregando sessão...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return null;
 

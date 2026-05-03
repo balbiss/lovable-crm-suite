@@ -66,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       avatar: metadata.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
       companyName: metadata.company || metadata.company_name || "Minha Empresa",
       orgId: profile?.org_id || metadata.org_id,
+      org_id: profile?.org_id || metadata.org_id, // compatibilidade snake_case
     };
     
     console.log("Usuário mapeado final:", mapped);
