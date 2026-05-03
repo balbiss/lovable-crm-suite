@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { cacheGet, cacheSet } from '../lib/redis';
 import { enqueueRotation } from '../queues/rotation.queue';
+import { PapiService } from '../services/papi.service';
 import { broadcastToOrg } from './chat.routes';
 
 const router = Router();
