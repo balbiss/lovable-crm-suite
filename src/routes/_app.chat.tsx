@@ -215,6 +215,7 @@ function ChatPage() {
     setSending(true);
     try {
       const payload = {
+        conversationId: activeConv.id,
         instanceId,
         jid: activeConv.jid,
         type,
