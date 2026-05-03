@@ -228,8 +228,87 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
           .update({ last_customer_message_at: new Date().toISOString() })
           .eq('id', conv.id);
 
-        // Enfileira rodízio se não houver atendente
-        if (!conv.assigned_to) {
+        // --- GATILHO DA IA ---
+        console.log(`[IA] Verificando se IA está ativa para conversa ${conv.id}: ${conv.ai_enabled}`);
+        
+        if (conv.ai_enabled) {
+          // 1. Simula digitando imediatamente
+          PapiService.sendPresence(instanceId, jid, 'composing').catch(() => {});
+
+          // 2. Aguarda 9 segundos (Delay Humano)
+          console.log(`[IA] Aguardando 9 segundos antes de responder ${jid}...`);
+          await new Promise(resolve => setTimeout(resolve, 9000));
+
+          // Busca o prompt da organização
+          const { data: orgData } = await supabase
+            .from('organizations')
+            .select('ai_prompt')
+            .eq('id', orgId)
+            .single();
+
+          const systemPrompt = orgData?.ai_prompt || 'Seja um assistente prestativo.';
+
+          // Busca histórico recente (últimas 100 mensagens para "Memória Infinita")
+          const { data: historyMsgs } = await supabase
+            .from('messages')
+            .select('content, is_from_me')
+            .eq('conversation_id', conv.id)
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+          const historyText = historyMsgs
+            ?.reverse()
+            .map(m => `${m.is_from_me ? 'Vendedor' : 'Cliente'}: ${m.content}`)
+            .join('\n') || '';
+
+          console.log(`[IA] Gerando resposta para ${jid}...`);
+          const aiReply = await AIService.generateResponse(systemPrompt, historyText, content);
+
+          if (aiReply) {
+            console.log(`[IA] Resposta gerada: ${aiReply.substring(0, 50)}...`);
+            
+            // Envia via PAPI
+            try {
+              const sendRes = await PapiService.sendText(instanceId, jid, aiReply);
+
+              if (sendRes) {
+                // Salva a resposta da IA no banco
+                await supabase.from('messages').insert({
+                  conversation_id: conv.id,
+                  papi_message_id: sendRes.key?.id || `ai_${Date.now()}`,
+                  org_id: orgId,
+                  content: aiReply,
+                  is_from_me: true,
+                  type: 'text',
+                  status: 2
+                });
+
+                // Notifica o frontend
+                broadcastToOrg(orgId, 'new_message', {
+                  message: {
+                    content: aiReply,
+                    is_from_me: true,
+                    created_at: new Date().toISOString(),
+                    type: 'text'
+                  },
+                  conversation: {
+                    ...conv,
+                    last_message_preview: aiReply,
+                    last_message_at: new Date().toISOString()
+                  }
+                });
+              }
+            } catch (err: any) {
+              console.error('[IA] Erro ao enviar resposta via PAPI:', err.message);
+            }
+          }
+        } else {
+          console.log(`[IA] IA ignorada: ai_enabled está ${conv.ai_enabled}`);
+        }
+        // --- FIM GATILHO IA ---
+
+        // Enfileira rodízio se não houver atendente e IA estiver desligada (ou como backup)
+        if (!conv.assigned_to && !conv.ai_enabled) {
           enqueueRotation(orgId, conv.id, contactName).catch((err: Error) =>
             console.warn('[WEBHOOK] Rodízio não enfileirado:', err.message)
           );
@@ -240,7 +319,6 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
           console.warn('[WEBHOOK] Follow-up não agendado:', err.message)
         );
       }
-    }
 
     return res.json({ ok: true });
   } catch (error: any) {

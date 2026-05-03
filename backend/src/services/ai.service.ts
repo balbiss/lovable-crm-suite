@@ -90,31 +90,28 @@ export class AIService {
   }
 
   /**
-   * Gera uma mensagem de follow-up contextual
+   * Gera uma resposta automática baseada no prompt da organização e histórico
    */
-  static async generateFollowUp(history: string) {
+  static async generateResponse(systemPrompt: string, history: string, lastMessage: string) {
     try {
       const response = await openai.chat.completions.create({
         model: MODEL,
         messages: [
           {
             role: 'system',
-            content: `Você é um assistente de vendas. O cliente parou de responder. 
-            Analise o histórico e crie uma mensagem curta (máximo 2 frases) para retomar o contato. 
-            A mensagem deve ser específica sobre o que foi conversado por último. 
-            Não seja invasivo, seja prestativo. Use um tom amigável de WhatsApp.`
+            content: systemPrompt || 'Você é um assistente virtual. Seja cordial e prestativo.'
           },
           {
             role: 'user',
-            content: `Histórico da conversa:\n${history}`
+            content: `Histórico da conversa:\n${history}\n\nCliente disse agora: ${lastMessage}`
           }
         ],
-        temperature: 0.8,
+        temperature: 0.7,
       });
 
       return response.choices[0].message.content;
     } catch (error: any) {
-      console.error('[AI] Erro ao gerar follow-up:', error.message);
+      console.error('[AI] Erro ao gerar resposta:', error.message);
       return null;
     }
   }
