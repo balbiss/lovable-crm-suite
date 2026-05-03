@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Plus, MoreHorizontal, Building2, Stethoscope, Car, Filter } from "lucide-react";
 
 export const Route = createFileRoute("/_app/kanban")({
-  head: () => ({ meta: [{ title: "Funil de Vendas — Nexora CRM" }] }),
+  head: () => ({ meta: [{ title: "Funil de Vendas — InoovaWeb CRM" }] }),
   component: KanbanPage,
 });
 
@@ -16,19 +16,17 @@ const NICHE_ICON = { imobiliaria: Building2, clinica: Stethoscope, carros: Car }
 const STAGE_COLOR: Record<KanbanStage, string> = {
   novo: "border-info bg-info/5",
   qualificacao: "border-primary bg-primary/5",
+  visita: "border-chart-4 bg-chart-4/5",
   proposta: "border-warning bg-warning/5",
-  negociacao: "border-chart-5 bg-chart-5/5",
-  ganho: "border-success bg-success/5",
-  perdido: "border-destructive bg-destructive/5",
+  fechado: "border-success bg-success/5",
 };
 
 const STAGE_DOT: Record<KanbanStage, string> = {
   novo: "bg-info",
   qualificacao: "bg-primary",
+  visita: "bg-chart-4",
   proposta: "bg-warning",
-  negociacao: "bg-chart-5",
-  ganho: "bg-success",
-  perdido: "bg-destructive",
+  fechado: "bg-success",
 };
 
 function KanbanPage() {
@@ -44,7 +42,7 @@ function KanbanPage() {
 
   const grouped = useMemo(() => {
     const map: Record<KanbanStage, Lead[]> = {
-      novo: [], qualificacao: [], proposta: [], negociacao: [], ganho: [], perdido: [],
+      novo: [], qualificacao: [], visita: [], proposta: [], fechado: [],
     };
     visible.forEach((l) => map[l.stage].push(l));
     return map;
@@ -158,46 +156,57 @@ function LeadCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        "rounded-xl bg-card border border-border p-3 cursor-grab active:cursor-grabbing shadow-soft hover:shadow-elevated transition-all",
+        "rounded-xl bg-card border border-border p-3 cursor-grab active:cursor-grabbing shadow-soft hover:shadow-elevated transition-all group",
         dragging && "opacity-40 scale-95"
       )}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <img src={lead.avatar} className="size-8 rounded-full object-cover" alt="" />
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative shrink-0">
+            <img src={lead.avatar} className="size-9 rounded-full object-cover border border-border" alt="" />
+            <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-card border border-border grid place-items-center shadow-sm">
+              <NicheIcon className="size-2.5 text-primary" />
+            </div>
+          </div>
           <div className="min-w-0">
-            <div className="font-medium text-sm truncate">{lead.name}</div>
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <NicheIcon className="size-3" /> <span className="capitalize">{lead.niche}</span>
+            <div className="font-bold text-sm truncate group-hover:text-primary transition-colors">{lead.name}</div>
+            <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+               <span className="capitalize">{lead.niche}</span>
             </div>
           </div>
         </div>
         {lead.unread > 0 && (
-          <span className="size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shrink-0">
+          <span className="size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shrink-0 shadow-glow">
             {lead.unread}
           </span>
         )}
       </div>
 
-      <div className="text-xs text-muted-foreground space-y-0.5 mb-2">
-        {lead.imobiliaria && <div>{lead.imobiliaria.tipo} • {lead.imobiliaria.valor}</div>}
-        {lead.clinica && <div>{lead.clinica.procedimento}</div>}
-        {lead.carros && <div>{lead.carros.modelo}</div>}
+      <div className="bg-muted/50 rounded-lg p-2 mb-3 border border-border/50">
+        <div className="text-[11px] font-semibold text-foreground/80">
+          {lead.imobiliaria?.valor || lead.clinica?.valor || lead.carros?.valor || "Valor não definido"}
+        </div>
+        <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+          {lead.imobiliaria?.tipo || lead.clinica?.procedimento || lead.carros?.modelo}
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 mb-2">
+      <div className="flex flex-wrap gap-1 mb-3">
         {lead.tags.slice(0, 2).map((t) => (
-          <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-md bg-accent text-accent-foreground">
+          <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">
             {t}
           </span>
         ))}
       </div>
 
       {owner && (
-        <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center justify-between pt-2.5 border-t border-border/60">
           <div className="flex items-center gap-1.5">
-            <img src={owner.avatar} className="size-5 rounded-full" alt="" />
-            <span className="text-[11px] text-muted-foreground">{owner.name.split(" ")[0]}</span>
+            <img src={owner.avatar} className="size-4.5 rounded-full" alt="" />
+            <span className="text-[10px] text-muted-foreground font-medium">{owner.name.split(" ")[0]}</span>
+          </div>
+          <div className="text-[9px] text-muted-foreground">
+            {new Date(lead.lastMessageAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
           </div>
         </div>
       )}

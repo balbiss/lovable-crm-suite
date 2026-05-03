@@ -27,19 +27,17 @@ export const MOCK_USERS: User[] = [
 export const STAGE_LABELS: Record<KanbanStage, string> = {
   novo: "Novo Lead",
   qualificacao: "Qualificação",
+  visita: "Visita Agendada",
   proposta: "Proposta",
-  negociacao: "Negociação",
-  ganho: "Ganho",
-  perdido: "Perdido",
+  fechado: "Fechado",
 };
 
 export const STAGE_ORDER: KanbanStage[] = [
   "novo",
   "qualificacao",
+  "visita",
   "proposta",
-  "negociacao",
-  "ganho",
-  "perdido",
+  "fechado",
 ];
 
 const now = Date.now();
@@ -58,7 +56,7 @@ export const MOCK_LEADS: Lead[] = [
     lastMessageAt: min(3),
     unread: 2,
     tags: ["quente", "imóvel-alto-padrão"],
-    imobiliaria: { tipo: "Apartamento 3 dorm.", bairro: "Pinheiros, SP", valor: "R$ 1.2M – 1.6M" },
+    imobiliaria: { tipo: "Apartamento 3 dorm.", bairro: "Pinheiros, SP", valor: "R$ 1.600.000" },
   },
   {
     id: "l2",
@@ -71,7 +69,7 @@ export const MOCK_LEADS: Lead[] = [
     lastMessageAt: min(15),
     unread: 0,
     tags: ["estética"],
-    clinica: { procedimento: "Harmonização facial", convenio: "Particular" },
+    clinica: { procedimento: "Harmonização facial", convenio: "Particular", valor: "R$ 4.800" },
   },
   {
     id: "l3",
@@ -79,12 +77,12 @@ export const MOCK_LEADS: Lead[] = [
     phone: "+55 31 98123-4567",
     avatar: "https://i.pravatar.cc/150?img=15",
     niche: "carros",
-    stage: "negociacao",
+    stage: "visita",
     assignedTo: "u-seller-2",
     lastMessageAt: hr(1),
     unread: 1,
     tags: ["financiamento"],
-    carros: { modelo: "Toyota Corolla XEi", ano: "2024", financiamento: "60x" },
+    carros: { modelo: "Toyota Corolla XEi", ano: "2024", financiamento: "60x", valor: "R$ 158.000" },
   },
   {
     id: "l4",
@@ -97,7 +95,7 @@ export const MOCK_LEADS: Lead[] = [
     lastMessageAt: min(45),
     unread: 4,
     tags: ["primeira-compra"],
-    imobiliaria: { tipo: "Casa 4 dorm.", bairro: "Curitiba, Batel", valor: "R$ 2M+" },
+    imobiliaria: { tipo: "Casa 4 dorm.", bairro: "Curitiba, Batel", valor: "R$ 2.500.000" },
   },
   {
     id: "l5",
@@ -105,12 +103,12 @@ export const MOCK_LEADS: Lead[] = [
     phone: "+55 11 98000-1122",
     avatar: "https://i.pravatar.cc/150?img=11",
     niche: "carros",
-    stage: "ganho",
+    stage: "fechado",
     assignedTo: "u-seller-1",
     lastMessageAt: hr(8),
     unread: 0,
     tags: ["fechado"],
-    carros: { modelo: "Honda Civic Touring", ano: "2024", financiamento: "À vista" },
+    carros: { modelo: "Honda Civic Touring", ano: "2024", financiamento: "À vista", valor: "R$ 190.000" },
   },
   {
     id: "l6",
@@ -123,7 +121,7 @@ export const MOCK_LEADS: Lead[] = [
     lastMessageAt: hr(2),
     unread: 0,
     tags: ["odonto"],
-    clinica: { procedimento: "Implante dentário", convenio: "Unimed" },
+    clinica: { procedimento: "Implante dentário", convenio: "Unimed", valor: "R$ 3.500" },
   },
   {
     id: "l7",
@@ -131,12 +129,12 @@ export const MOCK_LEADS: Lead[] = [
     phone: "+55 11 97777-8888",
     avatar: "https://i.pravatar.cc/150?img=33",
     niche: "imobiliaria",
-    stage: "negociacao",
+    stage: "visita",
     assignedTo: "u-seller-1",
     lastMessageAt: hr(4),
     unread: 0,
     tags: ["investidor"],
-    imobiliaria: { tipo: "Sala comercial", bairro: "Vila Olímpia, SP", valor: "R$ 800k" },
+    imobiliaria: { tipo: "Sala comercial", bairro: "Vila Olímpia, SP", valor: "R$ 800.000" },
   },
   {
     id: "l8",
@@ -144,12 +142,12 @@ export const MOCK_LEADS: Lead[] = [
     phone: "+55 11 96543-2100",
     avatar: "https://i.pravatar.cc/150?img=49",
     niche: "carros",
-    stage: "perdido",
+    stage: "fechado",
     assignedTo: "u-seller-2",
     lastMessageAt: hr(48),
     unread: 0,
     tags: ["frio"],
-    carros: { modelo: "Jeep Compass", ano: "2023", financiamento: "Indeciso" },
+    carros: { modelo: "Jeep Compass", ano: "2023", financiamento: "Indeciso", valor: "R$ 145.000" },
   },
 ];
 

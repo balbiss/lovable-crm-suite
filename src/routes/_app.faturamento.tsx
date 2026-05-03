@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CreditCard, Download, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/faturamento")({
-  head: () => ({ meta: [{ title: "Faturamento — Nexora CRM" }] }),
+  head: () => ({ meta: [{ title: "Faturamento — InoovaWeb CRM" }] }),
   component: BillingPage,
 });
 
@@ -14,7 +14,7 @@ function BillingPage() {
         <p className="text-sm text-muted-foreground mt-0.5">Gerencie seu plano e histórico.</p>
       </header>
 
-      <div className="p-6 max-w-5xl space-y-6">
+      <div className="p-6 w-full space-y-6">
         <div className="rounded-2xl bg-gradient-primary text-primary-foreground p-6 shadow-glow">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>

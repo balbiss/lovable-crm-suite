@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Nexora CRM" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — InoovaWeb CRM" }] }),
   component: DashboardPage,
 });
 
@@ -82,7 +82,7 @@ function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Olá, {user?.name.split(" ")[0]} 👋
+              Olá, {user?.companyName} 👋
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {isAdmin ? "Visão geral da operação" : "Seus leads e atendimentos"}
@@ -91,7 +91,7 @@ function DashboardPage() {
         </div>
       </header>
 
-      <div className="p-6 space-y-6 max-w-7xl">
+      <div className="p-6 space-y-6 w-full">
         {/* Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard

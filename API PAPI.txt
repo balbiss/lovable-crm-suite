@@ -1,0 +1,2680 @@
+Endpoints Atualizados
+Os seguintes endpoints agora retornam o formato padronizado com messageId:
+
+Endpoint	Descrição
+/send-text	Enviar mensagem de texto
+/send-image	Enviar imagem
+/send-video	Enviar vídeo
+/send-audio	Enviar áudio
+/send-document	Enviar documento
+/send-location	Enviar localização
+/send-contact	Enviar contato
+/send-sticker	Enviar sticker
+/send-reaction	Enviar reação
+/send-poll	Enviar enquete
+/send-buttons	Enviar botões
+/send-list	Enviar lista
+/send-carousel	Enviar carrossel
+/send-product	Enviar produto
+/send-products	Enviar múltiplos produtos
+/delete-message	Deletar mensagem
+/edit-message	Editar mensagem
+Instâncias
+GET
+/api/instances
+Lista todas as instâncias criadas com seus status atuais.
+
+ Copiar
+// Resposta
+[
+  {
+    "id": "minha-instancia",
+    "status": "CONNECTED",
+    "name": "João Silva",
+    "phoneNumber": "5511999999999"
+  }
+]
+POST
+/api/instances
+Cria uma nova instância do WhatsApp. Após criar, use o endpoint de QR Code para conectar.
+
+Parâmetro	Tipo	Descrição
+id *obrigatório	string	Identificador único da instância
+ Copiar
+// Requisição
+{
+  "id": "minha-instancia"
+}
+
+// Resposta
+{
+  "id": "minha-instancia",
+  "status": "CONNECTING"
+}
+GET
+/api/instances/:id/qr
+Obtém o QR Code para conectar a instância ao WhatsApp.
+
+ Copiar
+// Resposta
+{
+  "qrImage": "data:image/png;base64,..."
+}
+GET
+/api/instances/:id/status
+NOVO
+Obtém o status detalhado de uma instância específica.
+
+ Copiar
+// Resposta
+{
+  "id": "minha-instancia",
+  "status": "CONNECTED",
+  "name": "João Silva",
+  "phoneNumber": "5511999999999"
+}
+DELETE
+/api/instances/:id
+Remove uma instância e desconecta do WhatsApp.
+
+ Copiar
+// Resposta
+{
+  "success": true
+}
+POST
+/api/instances/:id/toggle-public-link
+NOVO
+Habilita ou desabilita o link público de QR Code. Quando habilitado, você pode compartilhar um link para que clientes escaneiem o QR Code diretamente.
+
+ Auto-Update: A página pública atualiza o QR Code automaticamente em tempo real. O cliente não precisa recarregar a página.
+
+Parâmetro	Tipo	Descrição
+enabled *obrigatório	boolean	true para habilitar, false para desabilitar
+ Copiar
+// Requisição
+{
+  "enabled": true
+}
+
+// Resposta
+{
+  "success": true,
+  "enabled": true
+}
+
+// Link público para compartilhar:
+https://seu-servidor.com/qr-client.html?id=minha-instancia
+GET
+/api/instances/:id/public-status
+NOVO
+Obtém o status da instância para uso público (página de QR do cliente). Só funciona se o link público estiver habilitado.
+
+ Copiar
+// Resposta (link habilitado)
+{
+  "id": "minha-instancia",
+  "status": "QR_READY",
+  "qr": "2@abc123...",
+  "publicLinkEnabled": true
+}
+
+// Resposta (link desabilitado)
+{
+  "error": "Public link disabled"
+}
+POST
+/api/instances/:id/logout
+NOVO
+Desconecta a instância do WhatsApp sem deletar os dados da sessão.
+
+ Copiar
+// Resposta
+{
+  "success": true
+}
+GET
+/api/instances/:id/check-number/:phone
+NOVO
+Verifica se um número de telefone está registrado no WhatsApp.
+
+ Copiar
+// Exemplo: GET /api/instances/minha-instancia/check-number/5511999999999
+
+// Resposta (número existe)
+{
+  "exists": true,
+  "jid": "5511999999999@s.whatsapp.net"
+}
+
+// Resposta (número não existe)
+{
+  "exists": false,
+  "jid": null
+}
+Webhook
+POST
+/api/instances/:id/webhook
+NOVO
+Configura o webhook para receber mensagens e eventos em tempo real. Quando uma mensagem é recebida, ela será enviada para a URL configurada.
+
+Parâmetro	Tipo	Descrição
+url *obrigatório	string	URL que receberá os eventos (POST)
+enabled *obrigatório	boolean	Habilitar ou desabilitar o webhook
+events	array	Eventos para receber: ["messages", "status", "all"]
+ Copiar
+// Requisição
+{
+  "url": "https://seu-servidor.com/webhook",
+  "enabled": true,
+  "events": ["messages", "status"]
+}
+
+// Resposta
+{
+  "success": true,
+  "webhook": {
+    "url": "https://seu-servidor.com/webhook",
+    "enabled": true,
+    "events": ["messages", "status"]
+  }
+}
+GET
+/api/instances/:id/webhook
+NOVO
+Obtém a configuração atual do webhook.
+
+ Copiar
+// Resposta
+{
+  "webhook": {
+    "url": "https://seu-servidor.com/webhook",
+    "enabled": true,
+    "events": ["messages", "status"]
+  }
+}
+GET
+Eventos Disponíveis
+Lista de todos os eventos que podem ser configurados no webhook:
+
+ Mensagens
+Evento	Descrição
+messages	Mensagens recebidas (texto, imagem, vídeo, áudio, documento, localização, contato, sticker)
+message_status	Status de mensagens enviadas (2=enviado, 3=entregue, 4=lido)
+message_reaction	Reações em mensagens (emoji adicionado/removido)
+ Grupos
+Evento	Descrição
+group_update	Atualizações de grupos (nome, foto, descrição alterados)
+group_participants	Participantes de grupos (entrada, saída, promoção, rebaixamento)
+ Contatos & Presença
+Evento	Descrição
+presence	Presença de contatos (available, unavailable, composing, recording, paused)
+contacts	Atualizações de contatos (nome, foto de perfil)
+ Chamadas
+Evento	Descrição
+call	Chamadas de voz/vídeo (ringing, accepted, rejected, timeout)
+ Outros
+Evento	Descrição
+chats	Atualizações de conversas (arquivado, fixado, silenciado)
+labels	Labels/etiquetas (associação e edição)
+history_sync	Sincronização de histórico (quando conecta)
+all	Receber TODOS os eventos
+Headers enviados em cada webhook
+ Copiar
+Content-Type: application/json
+X-Instance-ID: minha-instancia
+X-Event-Type: messages | message_status | message_reaction | group_update | ...
+Exemplos de Payload
+ Copiar
+// Mensagem recebida (messages)
+{
+  "type": "message",
+  "instanceId": "minha-instancia",
+  "data": {
+    "key": { "remoteJid": "5511999999999@s.whatsapp.net", "id": "ABC123", "fromMe": false },
+    "message": { "conversation": "Olá!" },
+    "pushName": "João",
+    "messageTimestamp": 1702500000
+  }
+}
+
+// Status de mensagem (message_status)
+{
+  "type": "message_status",
+  "instanceId": "minha-instancia",
+  "data": {
+    "key": { "remoteJid": "5511999999999@s.whatsapp.net", "id": "ABC123" },
+    "update": { "status": 3 }  // 2=enviado, 3=entregue, 4=lido
+  }
+}
+
+// Reação em mensagem (message_reaction)
+{
+  "type": "message_reaction",
+  "instanceId": "minha-instancia",
+  "data": [{
+    "key": { "remoteJid": "5511999999999@s.whatsapp.net", "id": "MSG_ID" },
+    "reaction": { "text": "👍", "senderTimestampMs": 1702500000 }
+  }]
+}
+
+// Atualização de grupo (group_update)
+{
+  "type": "group_update",
+  "instanceId": "minha-instancia",
+  "data": [{
+    "id": "123456789@g.us",
+    "subject": "Novo Nome do Grupo",
+    "desc": "Nova descrição"
+  }]
+}
+
+// Participantes de grupo (group_participants)
+{
+  "type": "group_participants",
+  "instanceId": "minha-instancia",
+  "data": {
+    "id": "123456789@g.us",
+    "participants": ["5511999999999@s.whatsapp.net"],
+    "action": "add"  // add, remove, promote, demote
+  }
+}
+
+// Presença (presence)
+{
+  "type": "presence",
+  "instanceId": "minha-instancia",
+  "data": {
+    "id": "5511999999999@s.whatsapp.net",
+    "presences": {
+      "5511999999999@s.whatsapp.net": { "lastKnownPresence": "composing" }
+    }
+  }
+}
+
+// Chamada (call)
+{
+  "type": "call",
+  "instanceId": "minha-instancia",
+  "data": [{
+    "from": "5511999999999@s.whatsapp.net",
+    "id": "CALL_ID",
+    "status": "ringing",  // ringing, accepted, rejected, timeout
+    "isVideo": false,
+    "isGroup": false
+  }]
+}
+ Mídia em Base64 NEW
+Quando uma mensagem com mídia (imagem, vídeo, áudio, documento, sticker) é recebida, a API automaticamente faz download e converte para Base64, incluindo no payload do webhook:
+
+ Copiar
+// Mensagem com mídia (imagem, vídeo, áudio, documento, sticker)
+{
+  "type": "message",
+  "instanceId": "minha-instancia",
+  "data": {
+    "key": { "remoteJid": "5511999999999@s.whatsapp.net", "id": "ABC123" },
+    "message": { 
+      "imageMessage": { 
+        "mimetype": "image/jpeg",
+        "caption": "Olha essa foto!"
+      } 
+    },
+    "pushName": "João",
+    "messageTimestamp": 1702500000,
+    // ⬇️ MÍDIA EM BASE64 (automático)
+    "media": {
+      "base64": "iVBORw0KGgoAAAANSUhEUgAA...",
+      "mimetype": "image/jpeg",
+      "filename": "file_1702500000.jpeg"
+    }
+  }
+}
+Como decodificar Base64
+ Copiar
+// Node.js - Salvar arquivo
+const fs = require('fs');
+const { base64, filename } = data.media;
+const buffer = Buffer.from(base64, 'base64');
+fs.writeFileSync(`./downloads/${filename}`, buffer);
+
+// Python - Salvar arquivo
+import base64
+file_bytes = base64.b64decode(data['media']['base64'])
+with open(f"./downloads/{data['media']['filename']}", 'wb') as f:
+    f.write(file_bytes)
+
+// PHP - Salvar arquivo
+$fileContent = base64_decode($data['media']['base64']);
+file_put_contents("./downloads/{$data['media']['filename']}", $fileContent);
+ Nota: Mídias de newsletters/canais não são processadas (não possuem mediaKey para descriptografia).
+
+WebSocket
+NOVO
+POST
+/api/instances/:id/websocket
+NOVO
+Configura o WebSocket para receber eventos em tempo real. Similar ao webhook, mas usando conexão persistente WebSocket.
+
+Parâmetro	Tipo	Descrição
+url *obrigatório	string	URL do servidor WebSocket (ws:// ou wss://)
+enabled *obrigatório	boolean	Habilitar ou desabilitar o WebSocket
+events	string[]	Lista de eventos para receber (mesmos do webhook)
+ Copiar
+// Requisição
+{
+  "url": "wss://seu-servidor.com/ws",
+  "enabled": true,
+  "events": ["messages", "connection", "qr"]
+}
+
+// Resposta
+{
+  "success": true,
+  "websocket": {
+    "url": "wss://seu-servidor.com/ws",
+    "enabled": true,
+    "events": ["messages", "connection", "qr"]
+  }
+}
+GET
+/api/instances/:id/websocket
+NOVO
+Obtém a configuração atual do WebSocket.
+
+ Copiar
+// Resposta
+{
+  "websocket": {
+    "url": "wss://seu-servidor.com/ws",
+    "enabled": true,
+    "events": ["messages", "connection"]
+  }
+}
+Configurações da Instância
+ATUALIZADO
+POST
+/api/instances/:id/settings
+ATUALIZADO
+Configura comportamentos automáticos da instância como rejeitar chamadas, ignorar grupos, ignorar canais/newsletters, etc.
+
+Parâmetro	Tipo	Descrição
+rejectCalls	boolean	Rejeitar todas as chamadas automaticamente
+ignoreGroups	boolean	Ignorar todas as mensagens de grupos (@g.us)
+ignoreNewsletters	boolean	Ignorar mensagens de canais/newsletters (@newsletter, @broadcast)
+alwaysOnline	boolean	Permanecer sempre online
+readMessages	boolean	Marcar todas as mensagens como lidas automaticamente
+readStatus	boolean	Visualizar todos os status automaticamente
+syncFullHistory	boolean	Sincronizar histórico completo ao conectar
+ Copiar
+// Requisição
+{
+  "rejectCalls": true,
+  "ignoreGroups": false,
+  "ignoreNewsletters": true,
+  "alwaysOnline": true,
+  "readMessages": true,
+  "readStatus": false,
+  "syncFullHistory": true
+}
+
+// Resposta
+{
+  "success": true,
+  "settings": {
+    "rejectCalls": true,
+    "ignoreGroups": false,
+    "ignoreNewsletters": true,
+    "alwaysOnline": true,
+    "readMessages": true,
+    "readStatus": false,
+    "syncFullHistory": true
+  }
+}
+GET
+/api/instances/:id/settings
+ATUALIZADO
+Obtém as configurações atuais da instância.
+
+ Copiar
+// Resposta
+{
+  "settings": {
+    "rejectCalls": false,
+    "ignoreGroups": false,
+    "ignoreNewsletters": false,
+    "alwaysOnline": false,
+    "readMessages": false,
+    "readStatus": false,
+    "syncFullHistory": true
+  }
+}
+Configuração
+GET
+Storage (PostgreSQL + Redis)
+v1.3
+A Pastorini API suporta 3 tipos de armazenamento para sessões, configuráveis via variáveis de ambiente:
+
+Tipo	Descrição	Recomendado para
+file	Armazena sessões em arquivos no disco	Desenvolvimento, até 50 instâncias
+postgres	Armazena sessões no PostgreSQL	Produção, 50-500 instâncias
+postgres+redis	PostgreSQL + Redis como cache	Alta escala, 500+ instâncias
+ Copiar
+# Variáveis de ambiente (.env)
+
+# Tipo de storage: file | postgres | postgres+redis
+STORAGE_TYPE=postgres+redis
+
+# PostgreSQL
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=pastorini_api
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=sua_senha
+
+# Redis (apenas para postgres+redis)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+Arquitetura com Redis: O Redis atua como cache L1 (in-memory) enquanto o PostgreSQL é o storage persistente. Isso proporciona leituras extremamente rápidas (~1ms) com a segurança de persistência do PostgreSQL.
+
+ Setup Rápido com Docker
+Execute um único comando para subir PostgreSQL e Redis:
+
+# Subir PostgreSQL + Redis
+npm run setup
+
+# Ou usando docker-compose diretamente
+docker-compose up -d
+
+# Iniciar a API
+npm run server
+
+# Ou tudo junto (setup + server)
+npm run dev
+Mensagens
+POST
+/api/instances/:id/send-text
+ATUALIZADO
+Envia uma mensagem de texto simples. Valida automaticamente se o número existe no WhatsApp.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário (ex: 5511999999999@s.whatsapp.net)
+text *obrigatório	string	Texto da mensagem
+validateNumber	boolean	Validar se número existe no WhatsApp (padrão: true)
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "text": "Olá! Esta é uma mensagem de teste."
+}
+
+// Resposta de Sucesso (200)
+{
+  "success": true,
+  "messageId": "3EB0B430F7A4D8C1E2F3",
+  "remoteJid": "5511999999999@s.whatsapp.net",
+  "timestamp": 1703847600
+}
+
+// Erro: Número não existe no WhatsApp (400)
+{
+  "success": false,
+  "error": "Number not registered on WhatsApp",
+  "number": "5511999999999"
+}
+POST
+/api/instances/:id/send-image
+ATUALIZADO
+Envia uma imagem com legenda opcional. Aceita URL ou base64.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+url	string	URL da imagem (obrigatório se não usar base64)
+base64	string	Imagem em base64 (obrigatório se não usar url)
+caption	string	Legenda da imagem
+mimetype	string	Tipo MIME (padrão: image/jpeg)
+validateNumber	boolean	Validar se número existe no WhatsApp (padrão: true)
+ Copiar
+// Requisição com URL
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "url": "https://exemplo.com/imagem.jpg",
+  "caption": "Veja esta imagem!"
+}
+
+// Resposta de Sucesso (200)
+{
+  "success": true,
+  "messageId": "3EB0B430F7A4D8C1E2F3",
+  "remoteJid": "5511999999999@s.whatsapp.net",
+  "timestamp": 1703847600
+}
+POST
+/api/instances/:id/send-video
+ATUALIZADO
+Envia um vídeo com legenda opcional. Aceita URL ou base64.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+url	string	URL do vídeo (obrigatório se não usar base64)
+base64	string	Vídeo em base64 (obrigatório se não usar url)
+caption	string	Legenda do vídeo
+gifPlayback	boolean	Enviar como GIF (loop)
+mimetype	string	Tipo MIME (padrão: video/mp4)
+validateNumber	boolean	Validar se número existe no WhatsApp (padrão: true)
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "url": "https://exemplo.com/video.mp4",
+  "caption": "Confira este vídeo!",
+  "gifPlayback": false
+}
+
+// Resposta de Sucesso (200)
+{
+  "success": true,
+  "messageId": "3EB0B430F7A4D8C1E2F3",
+  "remoteJid": "5511999999999@s.whatsapp.net",
+  "timestamp": 1703847600
+}
+POST
+/api/instances/:id/send-audio
+ATUALIZADO
+Envia um áudio (pode ser como mensagem de voz). Aceita URL ou base64.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+url	string	URL do áudio (obrigatório se não usar base64)
+base64	string	Áudio em base64 (obrigatório se não usar url)
+ptt	boolean	Enviar como mensagem de voz (push-to-talk)
+mimetype	string	Tipo MIME (padrão: audio/mpeg ou audio/ogg se ptt=true)
+validateNumber	boolean	Validar se número existe no WhatsApp (padrão: true)
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "url": "https://exemplo.com/audio.mp3",
+  "ptt": true
+}
+
+// Resposta de Sucesso (200)
+{
+  "success": true,
+  "messageId": "3EB0B430F7A4D8C1E2F3",
+  "remoteJid": "5511999999999@s.whatsapp.net",
+  "timestamp": 1703847600
+}
+POST
+/api/instances/:id/send-document
+NOVO
+Envia um documento (PDF, DOC, etc).
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+url *obrigatório	string	URL do documento
+filename	string	Nome do arquivo
+mimetype	string	Tipo MIME (ex: application/pdf)
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "url": "https://exemplo.com/documento.pdf",
+  "filename": "Contrato.pdf",
+  "mimetype": "application/pdf"
+}
+POST
+/api/instances/:id/send-location
+NOVO
+Envia uma localização.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+latitude *obrigatório	number	Latitude
+longitude *obrigatório	number	Longitude
+name	string	Nome do local
+address	string	Endereço
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "latitude": -23.5505,
+  "longitude": -46.6333,
+  "name": "São Paulo",
+  "address": "Av. Paulista, 1000"
+}
+POST
+/api/instances/:id/send-contact
+NOVO
+Envia um cartão de contato.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+name *obrigatório	string	Nome do contato
+phone *obrigatório	string	Telefone do contato
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "name": "Maria Silva",
+  "phone": "+5511988888888"
+}
+POST
+/api/instances/:id/send-sticker
+NOVO
+Envia um sticker/figurinha.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+url *obrigatório	string	URL do sticker (WebP)
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "url": "https://exemplo.com/sticker.webp"
+}
+POST
+/api/instances/:id/send-reaction
+NOVO
+Envia uma reação (emoji) a uma mensagem.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	JID do chat
+messageId *obrigatório	string	ID da mensagem para reagir
+emoji *obrigatório	string	Emoji da reação (vazio para remover)
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "messageId": "3EB0B430A...",
+  "emoji": "👍"
+}
+Mensagens Interativas
+POST
+/api/instances/:id/send-buttons
+Envia uma mensagem com botões interativos. ✅ Funciona em Web, iOS e Android!
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+text *obrigatório	string	Texto principal da mensagem
+footer	string	Texto do rodapé
+buttons *obrigatório	array	Array de botões (ver tipos abaixo)
+✅ Compatibilidade WhatsApp Web:
+Combinações que funcionam no Web:
+✅ Apenas reply (até 3 botões)
+✅ Apenas CTAs juntos: copy + url + call
+
+⚠️ NÃO misture: reply com CTAs (não aparece no Web)
+
+Tipos de Botões:
+ Copiar
+// Botão de Resposta Rápida (reply)
+{
+  "type": "reply",
+  "displayText": "Sim",
+  "id": "btn_sim"
+}
+
+// Botão de URL (cta_url)
+{
+  "type": "cta_url",
+  "displayText": "Visitar Site",
+  "url": "https://google.com"
+}
+
+// Botão de Ligação (cta_call)
+{
+  "type": "cta_call",
+  "displayText": "Ligar",
+  "phoneNumber": "+5511999999999"
+}
+
+// Botão de Copiar Código - PIX, Cupom, etc (cta_copy)
+{
+  "type": "cta_copy",
+  "displayText": "📋 Copiar Código PIX",
+  "copyCode": "00020126580014br.gov.bcb.pix..."
+}
+✅ Exemplo 1: Todos os CTAs juntos (funciona no Web):
+ Copiar
+// PIX + Link + Ligação - FUNCIONA NO WEB!
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "text": "💳 Pagamento via PIX\n\nValor: R$ 150,00\nPedido: #12345\nVencimento: 24h",
+  "footer": "Clique no botão para copiar o código",
+  "buttons": [
+    { 
+      "type": "cta_call", 
+      "displayText": "📞 Ligar para Suporte", 
+      "phoneNumber": "+5511999999999" 
+    },
+    { 
+      "type": "cta_copy", 
+      "displayText": "📋 Copiar Código PIX", 
+      "copyCode": "00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-426614174000" 
+    },
+    { 
+      "type": "cta_url", 
+      "displayText": "🌐 Ver Pedido", 
+      "url": "https://exemplo.com/pedido/12345" 
+    }
+  ]
+}
+✅ Exemplo 2: Apenas reply (funciona no Web):
+ Copiar
+// Apenas botões de resposta rápida - FUNCIONA NO WEB!
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "text": "Escolha uma opção:",
+  "footer": "Atendimento automático",
+  "buttons": [
+    { "type": "reply", "displayText": "🛒 Fazer Pedido", "id": "vendas" },
+    { "type": "reply", "displayText": "🔧 Suporte Técnico", "id": "suporte" },
+    { "type": "reply", "displayText": "💰 Financeiro", "id": "financeiro" }
+  ]
+}
+❌ Exemplo que NÃO funciona no Web (mistura CTA + reply):
+// NÃO FUNCIONA NO WEB - mistura tipos!
+{
+  "buttons": [
+    { "type": "copy", "displayText": "Copiar", "code": "..." },
+    { "type": "reply", "displayText": "Confirmar", "id": "ok" }  // ❌ Não misture!
+  ]
+}
+POST
+/api/instances/:id/send-list
+Envia uma mensagem com lista de opções. ✅ Funciona em Web, iOS e Android!
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+title	string	Título da mensagem
+body *obrigatório	string	Texto principal
+footer	string	Texto do rodapé
+buttonText *obrigatório	string	Texto do botão que abre a lista
+sections *obrigatório	array	Seções com opções da lista
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "🍔 Cardápio Completo",
+  "body": "Escolha uma categoria para ver os itens disponíveis",
+  "footer": "Delivery - Taxa grátis acima de R$ 50",
+  "buttonText": "📋 Ver Cardápio",
+  "sections": [
+    {
+      "title": "🍔 Hambúrgueres",
+      "rows": [
+        { "id": "burger_classico", "title": "Clássico", "description": "Pão, carne 180g, queijo, alface, tomate - R$ 28,90" },
+        { "id": "burger_bacon", "title": "Bacon Lovers", "description": "Pão, carne 180g, bacon crocante, cheddar - R$ 34,90" }
+      ]
+    },
+    {
+      "title": "🍕 Pizzas",
+      "rows": [
+        { "id": "pizza_margherita", "title": "Margherita", "description": "Molho, mussarela, tomate, manjericão - R$ 49,90" },
+        { "id": "pizza_pepperoni", "title": "Pepperoni", "description": "Molho, mussarela, pepperoni - R$ 54,90" }
+      ]
+    },
+    {
+      "title": "🥤 Bebidas",
+      "rows": [
+        { "id": "bebida_refri", "title": "Refrigerante 350ml", "description": "Coca, Guaraná, Sprite - R$ 6,90" },
+        { "id": "bebida_suco", "title": "Suco Natural 500ml", "description": "Laranja, Limão, Maracujá - R$ 12,90" }
+      ]
+    }
+  ]
+}
+POST
+/api/instances/:id/send-carousel
+Envia um carrossel de cards com imagens e botões. Nota:
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+cards *obrigatório	array	Array de cards (máximo 10)
+ Copiar
+// Requisição
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "cards": [
+    {
+      "header": {
+        "title": "Produto 1",
+        "subtitle": "Oferta especial",
+        "imageUrl": "https://exemplo.com/img1.jpg"
+      },
+      "body": "Descrição do produto 1",
+      "footer": "R$ 99,90",
+      "buttons": [
+        { "displayText": "Comprar", "urlButton": { "url": "https://loja.com/p1" } },
+        { "displayText": "Eu Quero", "quickReplyButton": { "id": "want_p1" } }
+      ]
+    },
+    {
+      "header": {
+        "title": "Produto 2",
+        "imageUrl": "https://exemplo.com/img2.jpg"
+      },
+      "body": "Descrição do produto 2",
+      "footer": "R$ 149,90",
+      "buttons": [
+        { "displayText": "Ligar", "callButton": { "phoneNumber": "+5511999999999" } }
+      ]
+    }
+  ]
+}
+POST
+/api/instances/:id/send-products
+NOVO
+Envia múltiplos produtos do catálogo do WhatsApp Business. Requer: Catálogo configurado no WhatsApp Business.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+productIds *obrigatório	string[]	Array de IDs dos produtos do catálogo (máximo 30)
+catalogId	string	ID do catálogo (opcional, usa o padrão da conta)
+title	string	Título da mensagem
+body	string	Texto da mensagem
+footer	string	Rodapé da mensagem
+ Copiar
+// Enviar múltiplos produtos do catálogo
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "productIds": ["produto_001", "produto_002", "produto_003"],
+  "title": "Ofertas da Semana",
+  "body": "Confira nossos produtos em promoção!",
+  "footer": "Válido até domingo"
+}
+ Importante: Os productIds devem corresponder aos IDs dos produtos cadastrados no seu catálogo do WhatsApp Business.
+
+POST
+/api/instances/:id/send-product
+NOVO
+Envia um único produto do catálogo com detalhes completos. Requer: Catálogo configurado no WhatsApp Business.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário
+productId *obrigatório	string	ID do produto no catálogo
+catalogId	string	ID do catálogo (opcional)
+body	string	Texto da mensagem
+footer	string	Rodapé da mensagem
+ Copiar
+// Enviar produto único do catálogo
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "productId": "produto_001",
+  "body": "Olha esse produto incrível!",
+  "footer": "Frete grátis"
+}
+POST
+/api/instances/:id/send-poll
+NOVO
+Envia uma enquete/votação para um contato ou grupo. Funciona no celular e desktop!
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	Número do destinatário (ex: 5511999999999@s.whatsapp.net)
+name *obrigatório	string	Pergunta da enquete
+options *obrigatório	string[]	Lista de opções (mínimo 2, máximo 12)
+selectableCount	number	Quantidade de opções selecionáveis (1 = única, 0 = múltipla). Padrão: 1
+ Copiar
+// Enquete de escolha única
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "name": "Qual sua linguagem favorita?",
+  "options": ["JavaScript", "Python", "TypeScript", "Go"],
+  "selectableCount": 1
+}
+
+// Enquete de múltipla escolha
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "name": "Quais tecnologias você usa?",
+  "options": ["React", "Vue", "Angular", "Node.js", "Docker"],
+  "selectableCount": 0
+}
+ Vantagem: Enquetes funcionam tanto no celular quanto no WhatsApp Desktop!
+
+Catálogo de Produtos
+Gerencie o catálogo de produtos do WhatsApp Business. Requer: Conta WhatsApp Business com catálogo configurado.
+
+GET
+/api/instances/:id/catalog
+NOVO
+Lista todos os produtos do seu catálogo.
+
+Parâmetro	Tipo	Descrição
+limit	number	Quantidade máxima de produtos (padrão: 100)
+cursor	string	Cursor para paginação (retornado na resposta anterior)
+ Copiar
+// Resposta
+{
+  "success": true,
+  "jid": "5511999999999@s.whatsapp.net",
+  "productsCount": 15,
+  "products": [
+    {
+      "id": "produto_001",
+      "name": "Camiseta Básica",
+      "description": "Camiseta 100% algodão",
+      "price": 4990,
+      "currency": "BRL",
+      "imageUrl": "https://..."
+    }
+  ],
+  "nextPageCursor": "abc123..."
+}
+GET
+/api/instances/:id/catalog/:number
+NOVO
+Obtém o catálogo de outro número do WhatsApp Business.
+
+Parâmetro	Tipo	Descrição
+number *obrigatório	string	Número do WhatsApp Business (ex: 5511999999999)
+limit	number	Quantidade máxima de produtos (padrão: 100)
+ Copiar
+// GET /api/instances/minha-instancia/catalog/5511888888888
+// Resposta
+{
+  "success": true,
+  "jid": "5511888888888@s.whatsapp.net",
+  "productsCount": 25,
+  "products": [...]
+}
+POST
+/api/instances/:id/catalog/product
+NOVO
+Cria um novo produto no catálogo.
+
+Parâmetro	Tipo	Descrição
+name *obrigatório	string	Nome do produto
+description	string	Descrição do produto
+price	number	Preço em centavos (ex: 4990 = R$ 49,90)
+currency	string	Moeda (padrão: BRL)
+imageUrl	string	URL da imagem do produto
+url	string	Link para o produto (site)
+retailerId	string	ID interno do produto (SKU)
+isHidden	boolean	Ocultar produto do catálogo público
+ Copiar
+// Criar produto
+{
+  "name": "Camiseta Premium",
+  "description": "Camiseta 100% algodão, várias cores disponíveis",
+  "price": 7990,
+  "currency": "BRL",
+  "imageUrl": "https://exemplo.com/camiseta.jpg",
+  "url": "https://minhaloja.com/camiseta-premium",
+  "retailerId": "SKU-001",
+  "isHidden": false
+}
+PUT
+/api/instances/:id/catalog/product/:productId
+NOVO
+Atualiza um produto existente no catálogo.
+
+Parâmetro	Tipo	Descrição
+productId *obrigatório	string	ID do produto (na URL)
+name	string	Novo nome do produto
+price	number	Novo preço em centavos
+... (mesmos campos do criar)
+ Copiar
+// PUT /api/instances/minha-instancia/catalog/product/produto_001
+{
+  "price": 5990,
+  "description": "Promoção! Camiseta com 25% de desconto"
+}
+DELETE
+/api/instances/:id/catalog/product/:productId
+NOVO
+Remove um produto do catálogo.
+
+Parâmetro	Tipo	Descrição
+productId *obrigatório	string	ID do produto a ser removido
+ Copiar
+// DELETE /api/instances/minha-instancia/catalog/product/produto_001
+// Resposta
+{
+  "success": true,
+  "deletedProductId": "produto_001"
+}
+GET
+/api/instances/:id/catalog/collections
+NOVO
+Lista as coleções do catálogo (categorias de produtos).
+
+Parâmetro	Tipo	Descrição
+limit	number	Quantidade máxima de coleções (padrão: 50)
+ Copiar
+// Resposta
+{
+  "success": true,
+  "collectionsCount": 3,
+  "collections": [
+    {
+      "id": "colecao_001",
+      "name": "Roupas Masculinas",
+      "productsCount": 12
+    },
+    {
+      "id": "colecao_002",
+      "name": "Acessórios",
+      "productsCount": 8
+    }
+  ]
+}
+POST
+/api/instances/:id/catalog/collection
+NOVO
+Cria uma nova coleção no catálogo com produtos selecionados.
+
+Parâmetro	Tipo	Descrição
+name *obrigatório	string	Nome da coleção
+productIds *obrigatório	string[]	Array de IDs dos produtos para incluir na coleção
+ Copiar
+// Criar coleção
+{
+  "name": "Promoções de Verão",
+  "productIds": ["produto_001", "produto_002", "produto_003"]
+}
+DELETE
+/api/instances/:id/catalog/collection/:collectionId
+NOVO
+Remove uma coleção do catálogo. Os produtos não são deletados, apenas removidos da coleção.
+
+Parâmetro	Tipo	Descrição
+collectionId *obrigatório	string	ID da coleção a ser removida (na URL)
+ Copiar
+// DELETE /api/instances/minha-instancia/catalog/collection/colecao_001
+// Resposta
+{
+  "success": true,
+  "deletedCollectionId": "colecao_001"
+}
+ Importante: Para usar o catálogo, sua conta deve ser WhatsApp Business e ter o catálogo configurado no aplicativo ou via Facebook Business Manager.
+
+Grupos
+POST
+/api/instances/:id/groups/create
+NOVO
+Cria um novo grupo.
+
+Parâmetro	Tipo	Descrição
+name *obrigatório	string	Nome do grupo
+participants *obrigatório	array	Lista de JIDs dos participantes
+ Copiar
+// Requisição
+{
+  "name": "Meu Grupo",
+  "participants": [
+    "5511999999999@s.whatsapp.net",
+    "5511888888888@s.whatsapp.net"
+  ]
+}
+GET
+/api/instances/:id/groups/:groupId/metadata
+NOVO
+Obtém metadados de um grupo (nome, descrição, participantes, etc).
+
+GET
+/api/instances/:id/groups/:groupId/invite-code
+NOVO
+Obtém o código de convite do grupo.
+
+POST
+/api/instances/:id/groups/:groupId/participants
+NOVO
+Gerencia participantes do grupo (adicionar, remover, promover, rebaixar).
+
+Parâmetro	Tipo	Descrição
+action *obrigatório	string	Ação: add, remove, promote, demote
+participants *obrigatório	array	Lista de JIDs
+ Copiar
+// Adicionar participantes
+{
+  "action": "add",
+  "participants": ["5511999999999@s.whatsapp.net"]
+}
+
+// Remover participantes
+{
+  "action": "remove",
+  "participants": ["5511999999999@s.whatsapp.net"]
+}
+
+// Promover a admin
+{
+  "action": "promote",
+  "participants": ["5511999999999@s.whatsapp.net"]
+}
+
+// Rebaixar de admin
+{
+  "action": "demote",
+  "participants": ["5511999999999@s.whatsapp.net"]
+}
+PUT
+/api/instances/:id/groups/:groupId/settings
+NOVO
+Atualiza configurações do grupo.
+
+Parâmetro	Tipo	Descrição
+subject	string	Nome do grupo
+description	string	Descrição do grupo
+announce	boolean	Apenas admins enviam mensagens
+restrict	boolean	Apenas admins editam info
+POST
+/api/instances/:id/groups/:groupId/photo
+NOVO
+Atualiza a foto do grupo.
+
+Parâmetro	Tipo	Descrição
+picture *obrigatório	string	Imagem em Base64
+ Copiar
+{
+  "picture": "data:image/jpeg;base64,..."
+}
+GET
+/api/instances/:id/groups/:groupId/requests
+NOVO
+Lista solicitações de entrada pendentes no grupo.
+
+POST
+/api/instances/:id/groups/:groupId/requests
+NOVO
+Aprova ou rejeita solicitações de entrada.
+
+Parâmetro	Tipo	Descrição
+action *obrigatório	string	'approve' ou 'reject'
+participants *obrigatório	string[]	Lista de JIDs dos participantes
+ Copiar
+{
+  "action": "approve",
+  "participants": ["5511999999999@s.whatsapp.net"]
+}
+POST
+/api/instances/:id/groups/:communityId/link
+NOVO
+Vincula um grupo existente a uma comunidade.
+
+Parâmetro	Tipo	Descrição
+group_jid *obrigatório	string	JID do grupo a ser vinculado
+ Copiar
+{
+  "group_jid": "1234567890@g.us"
+}
+POST
+/api/instances/:id/groups/:communityId/unlink
+NOVO
+Desvincula um grupo de uma comunidade.
+
+Parâmetro	Tipo	Descrição
+group_jid *obrigatório	string	JID do grupo a ser desvinculado
+ Copiar
+{
+  "group_jid": "1234567890@g.us"
+}
+POST
+/api/instances/:id/groups/:groupId/leave
+NOVO
+Sai do grupo.
+
+Usuários (Avançado)
+GET
+/api/instances/:id/users/:jid
+NOVO
+Obtém informações detalhadas de um usuário (foto, recado, etc).
+
+GET
+/api/instances/:id/users/:jid/business
+NOVO
+Obtém o perfil comercial de um usuário.
+
+Chamadas
+POST
+/api/instances/:id/calls/reject
+NOVO
+Rejeita uma chamada recebida.
+
+Parâmetro	Tipo	Descrição
+call_id *obrigatório	string	ID da chamada
+call_from *obrigatório	string	JID de quem iniciou a chamada
+ Copiar
+{
+  "call_id": "ABC123DEF456",
+  "call_from": "5511999999999@s.whatsapp.net"
+}
+Privacidade
+GET
+/api/instances/:id/privacy
+NOVO
+Obtém as configurações de privacidade atuais.
+
+POST
+/api/instances/:id/privacy
+NOVO
+Altera uma configuração de privacidade.
+
+Parâmetro	Tipo	Descrição
+name *obrigatório	string	Nome da configuração (last_seen, profile, status, read_receipts, group_add, online, call_add)
+value *obrigatório	string	Valor (all, contacts, contact_blacklist, none, known)
+ Copiar
+{
+  "name": "last_seen",
+  "value": "contacts"
+}
+GET
+/api/instances/:id/groups
+NOVO
+Lista todos os grupos que você participa.
+
+Perfil
+Redes Sociais / Canais (Newsletter)
+NOVO
+POST
+/api/instances/{id}/newsletter/create
+Cria um novo Canal (Newsletter) no WhatsApp.
+
+Parâmetro	Tipo	Obrigatório	Descrição
+name	string	Sim	Nome do canal
+description	string	Não	Descrição do canal
+picture	string (base64)	Não	Foto do canal em Base64
+ Copiar
+{
+  "name": "Meu Canal de Ofertas",
+  "description": "As melhores ofertas diárias!",
+  "picture": "Base64ImageString..."
+}
+POST
+/api/instances/{id}/newsletter/{jid}/follow
+Segue um Canal existente usando o JID.
+
+POST
+/api/instances/{id}/newsletter/{jid}/unfollow
+Deixa de seguir um Canal.
+
+GET
+/api/instances/{id}/newsletter/{jid}
+Obtém informações detalhadas de um Canal.
+
+GET
+/api/instances/{id}/newsletter/subscribed
+Lista todos os Canais que a instância segue.
+
+GET
+/api/instances/{id}/newsletter/{jid}/messages
+Obtém as mensagens de um Canal.
+
+Query Param	Tipo	Descrição
+count	integer	Quantidade de mensagens (padrão: 10)
+before	integer	ID da mensagem para paginação
+POST
+/api/instances/{id}/newsletter/{jid}/mute
+Silencia ou ativa as notificações de um Canal.
+
+ Copiar
+{
+  "mute": true
+}
+Perfil
+GET
+/api/instances/:id/profile-picture/:jid
+NOVO
+Obtém a URL da foto de perfil de um contato ou grupo.
+
+PUT
+/api/instances/:id/profile-picture
+NOVO
+Atualiza sua foto de perfil.
+
+Parâmetro	Tipo	Descrição
+url *obrigatório	string	URL da imagem ou base64
+PUT
+/api/instances/:id/profile-status
+NOVO
+Atualiza seu recado/status.
+
+Parâmetro	Tipo	Descrição
+status *obrigatório	string	Texto do recado
+PUT
+/api/instances/:id/profile-name
+NOVO
+Atualiza seu nome de perfil.
+
+Parâmetro	Tipo	Descrição
+name *obrigatório	string	Novo nome
+Privacidade
+GET
+/api/instances/:id/privacy-settings
+NOVO
+Obtém as configurações de privacidade atuais.
+
+POST
+/api/instances/:id/block
+NOVO
+Bloqueia ou desbloqueia um contato.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	JID do contato
+action *obrigatório	string	block ou unblock
+Outros
+POST
+/api/instances/:id/presence
+NOVO
+Atualiza a presença (online, digitando, gravando áudio).
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	JID do chat
+presence *obrigatório	string	available, unavailable, composing, recording, paused
+ Copiar
+// Mostrar "digitando..."
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "presence": "composing"
+}
+
+// Mostrar "gravando áudio..."
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "presence": "recording"
+}
+
+// Ficar online
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "presence": "available"
+}
+POST
+/api/instances/:id/read-messages
+NOVO
+Marca mensagens como lidas.
+
+Parâmetro	Tipo	Descrição
+keys *obrigatório	array	Array de chaves de mensagens
+ Copiar
+// Requisição
+{
+  "keys": [
+    {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "id": "3EB0B430A...",
+      "fromMe": false
+    }
+  ]
+}
+POST
+/api/instances/:id/labels
+NOVO
+Gerencia etiquetas/labels (WhatsApp Business).
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	JID do chat
+labelId *obrigatório	string	ID da etiqueta
+action *obrigatório	string	add ou remove
+GET
+/api/instances/:id/check-number/:phone
+NOVO
+Verifica se um número está registrado no WhatsApp.
+
+ Copiar
+// Resposta
+{
+  "exists": true,
+  "jid": "5511999999999@s.whatsapp.net"
+}
+POST
+/api/instances/:id/delete-message
+NOVO
+Deleta uma mensagem.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	JID do chat
+messageId *obrigatório	string	ID da mensagem
+fromMe *obrigatório	boolean	Se a mensagem foi enviada por você
+POST
+/api/instances/:id/edit-message
+NOVO
+Edita uma mensagem enviada por você.
+
+Parâmetro	Tipo	Descrição
+jid *obrigatório	string	JID do chat
+messageId *obrigatório	string	ID da mensagem
+newText *obrigatório	string	Novo texto da mensagem
+POST
+/api/instances/:id/logout
+NOVO
+Desconecta a instância do WhatsApp (logout).
+
+Informações Importantes
+Formato do JID
+O JID (Jabber ID) é o identificador único de um contato ou grupo no WhatsApp.
+
+// Contato individual
+"5511999999999@s.whatsapp.net"
+
+// Grupo
+"123456789012345678@g.us"
+
+// Status/Stories
+"status@broadcast"
+Status das Instâncias
+Status	Descrição
+CONNECTING	Conectando ao WhatsApp
+QR_READY	QR Code pronto para escanear
+CONNECTED	Conectado e pronto para uso
+DISCONNECTED	Desconectado
+SMS
+POST
+/api/sms/send
+NOVO
+Envia SMS através do gateway integrado. Suporta rotação automática de chips (30 portas disponíveis).
+
+Parâmetro	Tipo	Descrição
+number *	string	Número do destinatário (apenas números, ex: 5582988898565)
+text *	string	Texto da mensagem SMS
+port	number	Porta do chip (1-30). Se não informado, usa rotação automática
+ Copiar
+// Requisição
+POST /api/sms/send
+{
+  "number": "5582988898565",
+  "text": "Olá! Sua confirmação de pedido #12345",
+  "port": 5  // opcional
+}
+
+// Resposta
+{
+  "success": true,
+  "message": "SMS enviado",
+  "port": 5,
+  "response": "OK"
+}
+GET
+/api/call-instances
+NOVO
+Gerencia instâncias de ligação/SMS. Cada instância pode ter uma porta de chip configurada.
+
+Endpoints Disponíveis
+Método	Endpoint	Descrição
+GET	/api/call-instances	Lista todas as instâncias de ligação
+POST	/api/call-instances	Cria nova instância
+PUT	/api/call-instances/:id	Atualiza instância
+DEL	/api/call-instances/:id	Remove instância
+POST	/api/call-instances/test-sms	Envia SMS de teste
+ Copiar
+// Criar instância de ligação
+POST /api/call-instances
+{
+  "name": "Suporte",
+  "number": "5582988898565",
+  "port": 1,
+  "mode": "manual"  // manual | audio | ai
+}
+
+// Enviar SMS de teste
+POST /api/call-instances/test-sms
+{
+  "instanceId": "call_1234567890",
+  "number": "5582988898565",
+  "text": "Teste de SMS"
+}
+VoIP / Ligações com IA
+Sistema de ligações telefônicas automatizadas com Inteligência Artificial (Gemini). Crie campanhas de discagem automática com atendentes virtuais inteligentes.
+
+🚀 Como Funciona
+🤖
+Agente IA
+Configure o contexto e personalidade
+📋
+Mailing
+Lista de contatos para ligar
+📢
+Campanha
+Agente + Mailing + Configurações
+📞
+Discagem
+Ligações automáticas com IA
+Nota: Requer licença PRO e créditos VoIP. As rotas usam X-License-Key para autenticação.
+
+GET
+/api/voip/status
+Verifica o status do sistema VoIP (disponibilidade do servidor e conexão SIP).
+
+ Copiar
+{
+  "voipgo_available": true,
+  "sip_connected": true,
+  "ready": true
+}
+GET
+/api/voip/balance
+Retorna o saldo de créditos VoIP disponíveis.
+
+Header	Descrição
+X-License-Key *	Chave de licença para autenticação
+ Copiar
+{
+  "success": true,
+  "balance": 150.50,
+  "currency": "BRL"
+}
+📢 Campanhas VoIP
+Gerencie campanhas de ligações automáticas.
+
+Método	Endpoint	Descrição
+GET	/api/voip/campaigns	Lista todas as campanhas
+POST	/api/voip/campaigns	Cria nova campanha
+POST	/api/voip/campaigns/:id/start	Inicia a campanha
+POST	/api/voip/campaigns/:id/pause	Pausa a campanha
+POST	/api/voip/campaigns/:id/stop	Para a campanha
+GET	/api/voip/campaigns/:id/export	Exporta resultados (CSV)
+DELETE	/api/voip/campaigns/:id	Exclui a campanha
+Criar Campanha
+ Copiar
+// POST /api/voip/campaigns
+{
+  "name": "Campanha Black Friday",
+  "agentId": "agent_123",
+  "mailingId": "mailing_456",
+  "maxConcurrentCalls": 5,
+  "callTimeout": 30,
+  "retryAttempts": 2
+}
+🤖 Agentes IA
+Configure agentes virtuais com IA (Gemini) para atender as ligações.
+
+Método	Endpoint	Descrição
+GET	/api/voip/agents	Lista todos os agentes
+POST	/api/voip/agents	Cria novo agente
+PUT	/api/voip/agents/:id	Atualiza agente
+DELETE	/api/voip/agents/:id	Exclui agente
+Criar Agente IA
+ Copiar
+// POST /api/voip/agents
+{
+  "name": "Atendente Virtual - Vendas",
+  "context": "Você é um atendente virtual da empresa XYZ. Seu objetivo é apresentar nossos produtos e agendar uma demonstração. Seja cordial e profissional.",
+  "voice": "pt-BR-Wavenet-A",
+  "temperature": 0.7,
+  "maxTokens": 150
+}
+📋 Mailings
+Gerencie listas de contatos para as campanhas.
+
+Método	Endpoint	Descrição
+GET	/api/voip/mailings	Lista todos os mailings
+POST	/api/voip/mailings	Cria novo mailing
+GET	/api/voip/mailings/:id/contacts	Lista contatos do mailing
+PUT	/api/voip/mailings/:id	Atualiza mailing
+DELETE	/api/voip/mailings/:id	Exclui mailing
+Criar Mailing
+ Copiar
+// POST /api/voip/mailings
+{
+  "name": "Leads Janeiro 2025",
+  "contacts": [
+    { "phone": "5511999999999", "name": "João Silva" },
+    { "phone": "5511888888888", "name": "Maria Santos" },
+    { "phone": "5511777777777", "name": "Pedro Costa" }
+  ]
+}
+GET
+/api/voip/history
+Retorna o histórico de ligações realizadas.
+
+ Copiar
+{
+  "success": true,
+  "calls": [
+    {
+      "id": "call_123",
+      "campaignId": "campaign_456",
+      "phone": "5511999999999",
+      "status": "completed",
+      "duration": 45,
+      "result": "interested",
+      "createdAt": "2025-01-09T18:30:00Z"
+    }
+  ]
+}
+⚠️ Requisitos
+Licença PRO: Funcionalidade disponível apenas para licenças PRO
+Créditos VoIP: Cada ligação consome créditos do saldo
+Header X-License-Key: Obrigatório em todas as requisições (exceto /status)
+Servidor VoIP: O sistema se conecta ao voipGO via papiAdmin
+Proxy
+Configure proxies HTTP, HTTPS ou SOCKS para suas instâncias. Útil para contornar bloqueios de IP ou usar IPs de diferentes regiões.
+
+POST
+/api/instances/:id/proxy
+NOVO
+Configura um proxy específico para uma instância. Após configurar, reconecte a instância para aplicar.
+
+Parâmetro	Tipo	Descrição
+enabled *	boolean	Habilita ou desabilita o proxy para esta instância
+url	string	URL do proxy no formato: protocolo://usuario:senha@host:porta
+Protocolos Suportados
+Protocolo	Exemplo
+HTTP	http://user:pass@proxy.example.com:8080
+HTTPS	https://user:pass@proxy.example.com:8080
+SOCKS4	socks4://proxy.example.com:1080
+SOCKS5	socks5://user:pass@proxy.example.com:1080
+ Copiar
+// Requisição - Habilitar proxy HTTP
+POST /api/instances/minha-instancia/proxy
+{
+  "enabled": true,
+  "url": "http://user:pass@proxy.example.com:8080"
+}
+
+// Requisição - Habilitar proxy SOCKS5
+POST /api/instances/minha-instancia/proxy
+{
+  "enabled": true,
+  "url": "socks5://user:pass@proxy.example.com:1080"
+}
+
+// Requisição - Desabilitar proxy
+POST /api/instances/minha-instancia/proxy
+{
+  "enabled": false,
+  "url": ""
+}
+
+// Resposta
+{
+  "success": true,
+  "proxy": {
+    "enabled": true,
+    "url": "http://user:pass@proxy.example.com:8080"
+  },
+  "message": "Proxy configurado. Reconecte a instância para aplicar."
+}
+GET
+/api/instances/:id/proxy
+Obtém a configuração de proxy de uma instância e informações sobre o proxy global.
+
+ Copiar
+// Requisição
+GET /api/instances/minha-instancia/proxy
+
+// Resposta
+{
+  "proxy": {
+    "enabled": true,
+    "url": "http://user:pass@proxy.example.com:8080"
+  },
+  "globalProxy": {
+    "enabled": false,
+    "url": ""
+  }
+}
+GET
+/api/proxy/global
+Obtém a configuração do proxy global (definido via variáveis de ambiente).
+
+Variáveis de Ambiente
+Variável	Descrição	Exemplo
+PROXY_ENABLED	Habilita o proxy global	true ou false
+PROXY_URL	URL do proxy global	http://proxy.example.com:8080
+ Copiar
+// Configuração no .env
+PROXY_ENABLED=true
+PROXY_URL=http://user:pass@proxy.example.com:8080
+
+// Requisição
+GET /api/proxy/global
+
+// Resposta
+{
+  "globalProxy": {
+    "enabled": true,
+    "url": "http://user:pass@proxy.example.com:8080"
+  }
+}
+ Prioridade: O proxy configurado na instância tem prioridade sobre o proxy global. Se ambos estiverem habilitados, o da instância será usado.
+
+Webhook
+Receba notificações em tempo real sobre mensagens, status de conexão e outros eventos.
+
+POST
+/api/instances/:id/webhook
+NOVO
+Configura a URL do webhook para uma instância.
+
+Parâmetro	Tipo	Descrição
+url *obrigatório	string	URL que receberá os eventos (POST)
+enabled *obrigatório	boolean	Habilita ou desabilita o webhook
+ Copiar
+// Requisição
+{
+  "url": "https://meu-sistema.com/webhook",
+  "enabled": true
+}
+GET
+/api/instances/:id/webhook
+Retorna a configuração atual do webhook.
+
+Payload dos Eventos
+Estrutura do JSON enviado para sua URL.
+
+ Copiar
+{
+  "event": "messages.upsert",
+  "instanceId": "minha-instancia",
+  "data": {
+    "message": {
+      "id": "3EB0...",
+      "pushName": "João Silva",
+      "from": "5511999999999",          // Identificador principal (Telefone ou LID)
+      "phone": "5511999999999",         // Número de telefone limpo (sem sufixos)
+      "deviceId": 0,                    // ID do dispositivo (0=Celular, >0=Web/Desktop)
+      "to": "5511888888888",
+      "isGroup": false,
+      "type": "text",
+      "body": "Olá, tudo bem?",
+      "timestamp": 1706900000
+    }
+  }
+}
+ Nota sobre Identificadores:
+- phone: Use este campo para salvar o contato. Ele contém apenas o número (DDI+DDD+Num).
+- deviceId: Informa qual dispositivo enviou a mensagem (ex: 43 para Web). Útil para logs, mas não deve ser usado para identificar o usuário.
+
+POST
+/api/instances/:id/webhook
+NOVO
+Configura um Webhook Secundário dedicado para IA (opcional). Útil para separar o tráfego de mensagens para bots (n8n, Flowise, Typebot) do sistema principal.
+
+Parâmetro	Tipo	Descrição
+aiUrl	string	URL do webhook da IA
+aiEnabled	boolean	Habilita o envio para a IA
+aiEvents	string[]	Lista de eventos específicos para a IA (ex: ["messages.upsert"]).
+ Copiar
+// Exemplo: Configurar Webhook Principal + Webhook IA
+{
+  // Principal (ERP/CRM) - Recebe tudo
+  "url": "https://meu-sistema.com/webhook",
+  "enabled": true,
+  "events": ["all"],
+
+  // IA (n8n/Typebot) - Recebe apenas mensagens
+  "aiUrl": "https://n8n.webhook/chat",
+  "aiEnabled": true,
+  "aiEvents": ["messages.upsert"]
+}
+Rastreamento & Marketing
+Ferramentas exclusivas para rastreamento de campanhas (UTM) e integração com Meta Conversions API (CAPI) para otimização de anúncios.
+
+POST
+/api/instances/:id/utm
+NOVO
+Configura padrões de rastreamento UTM para detectar a origem dos leads automaticamente. Quando ativado, o sistema analisa mensagens recebidas em busca de parâmetros UTM ou códigos de referência.
+
+Parâmetro	Tipo	Descrição
+enabled *	boolean	Habilita a detecção de UTM
+refPatterns	string[]	Padrões de referência (ex: "ref:", "source:")
+ Copiar
+// Requisição
+POST /api/instances/minha-instancia/utm
+{
+  "enabled": true,
+  "refPatterns": ["ref:", "utm_source"]
+}
+
+// Resposta
+{
+  "success": true
+}
+GET
+/api/instances/:id/utm
+Obtém a configuração atual de rastreamento UTM.
+
+ Copiar
+// Requisição
+GET /api/instances/minha-instancia/utm
+
+// Resposta
+{
+  "enabled": true,
+  "refPatterns": ["ref:", "utm_source"]
+}
+POST
+/api/instances/:id/meta-capi
+NOVO
+Configura a integração com Meta Conversions API (Facebook Ads) para enviar eventos de LEAD automaticamente quando um contato novo entra em contato.
+
+Parâmetro	Tipo	Descrição
+enabled *	boolean	Habilita o envio de eventos
+pixelId	string	ID do Pixel do Facebook
+accessToken	string	Token de Acesso da API de Conversões
+testEventCode	string	Código de teste (opcional)
+ Copiar
+// Requisição
+POST /api/instances/minha-instancia/meta-capi
+{
+  "enabled": true,
+  "pixelId": "123456789012345",
+  "accessToken": "EAA...",
+  "testEventCode": "TEST12345"
+}
+
+// Resposta
+{
+  "success": true
+}
+GET
+/api/instances/:id/meta-capi
+Obtém a configuração atual da Meta Conversions API. Nota: O token de acesso é ocultado por segurança.
+
+ Copiar
+// Requisição
+GET /api/instances/minha-instancia/meta-capi
+
+// Resposta
+{
+  "enabled": true,
+  "pixelId": "123456789012345",
+  "testEventCode": "TEST12345"
+}
+Status do Servidor
+GET
+/api/stats
+Retorna estatísticas em tempo real do servidor: CPU, memória, uptime e instâncias conectadas. Esta rota é pública (não requer autenticação).
+
+ Copiar
+// Requisição
+GET /api/stats
+
+// Resposta
+{
+  "cpu": {
+    "usage": 15.2,
+    "cores": 8
+  },
+  "memory": {
+    "total": 17179869184,
+    "used": 8589934592,
+    "free": 8589934592,
+    "usagePercent": 50
+  },
+  "process": {
+    "rss": 157286400,
+    "heapTotal": 67108864,
+    "heapUsed": 45088768
+  },
+  "system": {
+    "platform": "linux",
+    "nodeVersion": "v20.10.0",
+    "uptime": 86400
+  },
+  "api": {
+    "uptime": 3600,
+    "instances": 5,
+    "connectedInstances": 3
+  }
+}
+Campos da Resposta
+Campo	Descrição
+cpu.usage	Uso de CPU em porcentagem
+cpu.cores	Número de núcleos do processador
+memory.usagePercent	Uso de memória RAM em porcentagem
+process.rss	Memória usada pelo processo Go (bytes)
+api.uptime	Tempo de atividade da API em segundos
+api.instances	Total de instâncias criadas
+api.connectedInstances	Instâncias atualmente conectadas
+Fila de Mensagens
+Sistema de fila com Redis para envio de mensagens com rate limiting, retry automático e persistência. Configurável via variáveis de ambiente.
+
+🚀 Como Funciona
+A fila processa mensagens automaticamente respeitando o rate limit configurado. Mensagens que falham são reenfileiradas até o máximo de tentativas.
+
+📬
+Enfileirar
+Mensagem entra na fila
+⏱️
+Rate Limit
+Respeita X msg/min
+🔄
+Retry
+Tenta novamente se falhar
+✅
+Enviado
+Estatísticas atualizadas
+GET
+/api/queue/status
+Verifica se a fila está habilitada e retorna a configuração atual.
+
+ Copiar
+{
+  "success": true,
+  "data": {
+    "enabled": true,
+    "config": {
+      "messagesPerMinute": 20,
+      "maxRetries": 3,
+      "retryDelayMs": 5000,
+      "processingIntervalMs": 1000
+    }
+  }
+}
+GET
+/api/queue/stats
+Retorna estatísticas de todas as instâncias que usaram a fila.
+
+ Copiar
+{
+  "success": true,
+  "data": {
+    "stats": [
+      {
+        "instanceId": "minha-instancia",
+        "pending": 15,
+        "processing": 1,
+        "completed": 1250,
+        "failed": 3,
+        "messagesLastMinute": 18
+      },
+      {
+        "instanceId": "outra-instancia",
+        "pending": 5,
+        "processing": 0,
+        "completed": 500,
+        "failed": 0,
+        "messagesLastMinute": 12
+      }
+    ]
+  }
+}
+GET
+/api/queue/:instanceId/status
+Retorna estatísticas detalhadas de uma instância específica.
+
+ Copiar
+{
+  "success": true,
+  "data": {
+    "instanceId": "minha-instancia",
+    "pending": 15,
+    "processing": 1,
+    "completed": 1250,
+    "failed": 3,
+    "messagesLastMinute": 18,
+    "paused": false
+  }
+}
+POST
+/api/queue/:instanceId/pause
+Pausa o processamento da fila para uma instância. Mensagens continuam sendo enfileiradas mas não são enviadas.
+
+ Copiar
+{
+  "success": true,
+  "data": {
+    "message": "Fila pausada",
+    "instanceId": "minha-instancia"
+  }
+}
+POST
+/api/queue/:instanceId/resume
+Retoma o processamento da fila para uma instância pausada.
+
+ Copiar
+{
+  "success": true,
+  "data": {
+    "message": "Fila retomada",
+    "instanceId": "minha-instancia"
+  }
+}
+POST
+/api/queue/:instanceId/clear
+Limpa todas as mensagens pendentes da fila de uma instância.
+
+ Copiar
+{
+  "success": true,
+  "data": {
+    "message": "Fila limpa",
+    "instanceId": "minha-instancia",
+    "clearedCount": 15
+  }
+}
+POST
+/api/queue/:instanceId/retry-failed
+Reenfileira todas as mensagens que falharam para uma nova tentativa de envio.
+
+ Copiar
+{
+  "success": true,
+  "data": {
+    "message": "Mensagens reenfileiradas",
+    "instanceId": "minha-instancia",
+    "retriedCount": 3
+  }
+}
+⚙️ Variáveis de Ambiente
+Configure a fila no arquivo .env:
+
+Variável	Padrão	Descrição
+QUEUE_ENABLED	true	Habilita ou desabilita o sistema de fila
+QUEUE_RATE_LIMIT	20	Máximo de mensagens por minuto por instância
+QUEUE_MAX_RETRIES	3	Máximo de tentativas antes de marcar como falha
+QUEUE_RETRY_DELAY_MS	5000	Delay entre tentativas em milissegundos
+QUEUE_PROCESSING_MS	1000	Intervalo de processamento da fila em ms
+QUEUE_DEBUG	false	Habilita logs detalhados da fila
+Exemplo de Configuração
+ Copiar
+# .env
+QUEUE_ENABLED=true
+QUEUE_RATE_LIMIT=20
+QUEUE_MAX_RETRIES=3
+QUEUE_RETRY_DELAY_MS=5000
+QUEUE_PROCESSING_MS=1000
+QUEUE_DEBUG=false
+📊 Painel de Gerenciamento
+Acesse o painel visual em /queue-manager.html para:
+
+Ver status da fila em tempo real
+Monitorar estatísticas por instância
+Pausar/retomar processamento
+Limpar filas pendentes
+Reprocessar mensagens que falharam
+Templates Prontos
+Templates prontos para copiar e usar nas suas requisições. Basta copiar o JSON e ajustar os dados conforme sua necessidade.
+
+📱
+Templates de Carrossel
+O carrossel permite enviar múltiplos cards horizontais com imagem, título, descrição e botões. Ideal para catálogos de produtos, cardápios, imóveis e serviços.
+
+🛒 E-commerce - Catálogo de Produtos
+Perfeito para lojas online mostrarem produtos com preços e botões de compra.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "🛍️ Ofertas Especiais",
+  "body": "Confira nossos produtos em destaque!",
+  "footer": "Loja Virtual - Entrega em todo Brasil",
+  "cards": [
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400",
+      "title": "📱 iPhone 15 Pro Max",
+      "body": "256GB - Titânio Natural\n💰 R$ 8.999,00 à vista\n💳 12x R$ 833,25",
+      "footer": "Frete Grátis",
+      "buttons": [
+        { "id": "comprar_iphone", "title": "🛒 Comprar Agora" },
+        { "id": "info_iphone", "title": "📋 Mais Detalhes" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400",
+      "title": "💻 MacBook Air M3",
+      "body": "8GB RAM - 256GB SSD\n💰 R$ 12.499,00 à vista\n💳 12x R$ 1.166,58",
+      "footer": "Garantia Apple 1 ano",
+      "buttons": [
+        { "id": "comprar_macbook", "title": "🛒 Comprar Agora" },
+        { "id": "info_macbook", "title": "📋 Mais Detalhes" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=400",
+      "title": "⌚ Apple Watch Series 9",
+      "body": "GPS + Cellular - 45mm\n💰 R$ 5.299,00 à vista\n💳 12x R$ 491,58",
+      "footer": "Pronta Entrega",
+      "buttons": [
+        { "id": "comprar_watch", "title": "🛒 Comprar Agora" },
+        { "id": "info_watch", "title": "📋 Mais Detalhes" }
+      ]
+    }
+  ]
+}
+🍕 Restaurante - Cardápio Digital
+Ideal para restaurantes, pizzarias e delivery mostrarem seus pratos.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "🍽️ Cardápio do Dia",
+  "body": "Escolha seu prato favorito!",
+  "footer": "Restaurante Sabor & Arte - Delivery",
+  "cards": [
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1544025162-d76694265947?w=400",
+      "title": "🥩 Picanha na Brasa",
+      "body": "Picanha grelhada 400g\nAcompanha: arroz, feijão tropeiro, farofa e vinagrete\n⭐ Mais Pedido!",
+      "footer": "R$ 89,90 - Serve 2 pessoas",
+      "buttons": [
+        { "id": "pedir_picanha", "title": "🛒 Pedir Agora" },
+        { "id": "add_bebida", "title": "🍺 Adicionar Bebida" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=400",
+      "title": "🍝 Lasanha Bolonhesa",
+      "body": "Massa fresca artesanal\nMolho bolonhesa caseiro\nQueijo gratinado",
+      "footer": "R$ 49,90 - Porção Individual",
+      "buttons": [
+        { "id": "pedir_lasanha", "title": "🛒 Pedir Agora" },
+        { "id": "ver_massas", "title": "🍝 Ver Outras Massas" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400",
+      "title": "🍣 Combo Sushi",
+      "body": "30 peças variadas:\n• 10 Hot Rolls\n• 10 Uramakis\n• 10 Niguiris",
+      "footer": "R$ 79,90 - Serve 2 pessoas",
+      "buttons": [
+        { "id": "pedir_sushi", "title": "🛒 Pedir Agora" },
+        { "id": "personalizar", "title": "✏️ Personalizar" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?w=400",
+      "title": "🍰 Petit Gateau",
+      "body": "Bolo de chocolate com centro cremoso\nAcompanha sorvete de creme",
+      "footer": "R$ 29,90",
+      "buttons": [
+        { "id": "pedir_sobremesa", "title": "🛒 Adicionar" },
+        { "id": "ver_sobremesas", "title": "🍨 Mais Sobremesas" }
+      ]
+    }
+  ]
+}
+🏠 Imobiliária - Imóveis Disponíveis
+Para corretores e imobiliárias apresentarem imóveis aos clientes.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "🏠 Imóveis Selecionados",
+  "body": "Encontramos opções perfeitas para você!",
+  "footer": "Imobiliária Premium - CRECI 12345",
+  "cards": [
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400",
+      "title": "🏢 Apartamento Alto Padrão",
+      "body": "📍 Jardins - São Paulo\n🛏️ 3 suítes | 🚗 2 vagas\n📐 180m² | 🏊 Lazer completo",
+      "footer": "R$ 2.500.000 ou R$ 12.000/mês",
+      "buttons": [
+        { "id": "agendar_visita_1", "title": "📅 Agendar Visita" },
+        { "id": "fotos_1", "title": "📸 Ver Fotos" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400",
+      "title": "🏡 Casa em Condomínio",
+      "body": "📍 Alphaville - Barueri\n🛏️ 4 suítes | 🚗 4 vagas\n📐 450m² | 🌳 Terreno 800m²",
+      "footer": "R$ 4.200.000",
+      "buttons": [
+        { "id": "agendar_visita_2", "title": "📅 Agendar Visita" },
+        { "id": "fotos_2", "title": "📸 Ver Fotos" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400",
+      "title": "🏬 Sala Comercial",
+      "body": "📍 Av. Paulista - SP\n📐 120m² | 🚗 2 vagas\n🏢 Edifício Triple A\n✨ Pronta para uso",
+      "footer": "R$ 18.000/mês",
+      "buttons": [
+        { "id": "agendar_visita_3", "title": "📅 Agendar Visita" },
+        { "id": "proposta_3", "title": "💼 Fazer Proposta" }
+      ]
+    }
+  ]
+}
+💼 Serviços - Catálogo de Planos
+Para empresas de serviços apresentarem seus planos e pacotes.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "📋 Nossos Planos",
+  "body": "Escolha o plano ideal para sua empresa",
+  "footer": "Marketing Digital Pro",
+  "cards": [
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400",
+      "title": "🥉 Plano Starter",
+      "body": "✅ 10 posts/mês\n✅ 2 redes sociais\n✅ Relatório mensal\n✅ Suporte por email",
+      "footer": "R$ 497/mês",
+      "buttons": [
+        { "id": "contratar_starter", "title": "✅ Contratar" },
+        { "id": "info_starter", "title": "ℹ️ Saiba Mais" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400",
+      "title": "🥈 Plano Professional",
+      "body": "✅ 20 posts/mês\n✅ 4 redes sociais\n✅ Gestão de tráfego\n✅ Suporte prioritário\n⭐ Mais Popular!",
+      "footer": "R$ 997/mês",
+      "buttons": [
+        { "id": "contratar_pro", "title": "✅ Contratar" },
+        { "id": "info_pro", "title": "ℹ️ Saiba Mais" }
+      ]
+    },
+    {
+      "imageUrl": "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=400",
+      "title": "🥇 Plano Enterprise",
+      "body": "✅ Posts ilimitados\n✅ Todas as redes\n✅ Equipe dedicada\n✅ Consultoria mensal\n✅ Suporte 24/7",
+      "footer": "R$ 2.497/mês",
+      "buttons": [
+        { "id": "contratar_enterprise", "title": "✅ Contratar" },
+        { "id": "reuniao", "title": "📞 Agendar Reunião" }
+      ]
+    }
+  ]
+}
+🔘
+Templates de Botões
+Botões permitem respostas rápidas do usuário. Máximo de 3 botões por mensagem.
+
+📞 Atendimento - Menu Inicial
+Menu de opções para início de atendimento.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "👋 Olá! Bem-vindo(a)!",
+  "body": "Sou o assistente virtual da Empresa XYZ.\n\nComo posso ajudar você hoje?",
+  "footer": "Atendimento 24h",
+  "buttons": [
+    { "id": "vendas", "title": "🛒 Fazer Pedido" },
+    { "id": "suporte", "title": "🔧 Suporte Técnico" },
+    { "id": "financeiro", "title": "💰 Financeiro" }
+  ]
+}
+✅ Confirmação de Pedido
+Solicitar confirmação do cliente.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "📦 Confirme seu Pedido",
+  "body": "Pedido #12345\n\n🛒 Itens:\n• 2x Camiseta Básica - R$ 79,80\n• 1x Calça Jeans - R$ 149,90\n\n💰 Total: R$ 229,70\n📍 Entrega: Rua das Flores, 123",
+  "footer": "Prazo de entrega: 3-5 dias úteis",
+  "buttons": [
+    { "id": "confirmar_pedido", "title": "✅ Confirmar Pedido" },
+    { "id": "alterar_pedido", "title": "✏️ Alterar Pedido" },
+    { "id": "cancelar_pedido", "title": "❌ Cancelar" }
+  ]
+}
+⭐ Pesquisa de Satisfação
+Coletar feedback do cliente após atendimento.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "⭐ Avalie nosso Atendimento",
+  "body": "Seu feedback é muito importante para nós!\n\nComo foi sua experiência com nosso atendimento hoje?",
+  "footer": "Obrigado por ser nosso cliente!",
+  "buttons": [
+    { "id": "avaliacao_otimo", "title": "😍 Excelente" },
+    { "id": "avaliacao_bom", "title": "😊 Bom" },
+    { "id": "avaliacao_ruim", "title": "😞 Precisa Melhorar" }
+  ]
+}
+📅 Agendamento
+Opções de horários para agendamento.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "📅 Agende sua Consulta",
+  "body": "Dr. João Silva - Cardiologista\n\nHorários disponíveis para amanhã:",
+  "footer": "Clínica Saúde Total",
+  "buttons": [
+    { "id": "horario_09h", "title": "🕘 09:00" },
+    { "id": "horario_14h", "title": "🕑 14:00" },
+    { "id": "horario_16h", "title": "🕓 16:00" }
+  ]
+}
+📋
+Templates de Lista
+Listas permitem organizar muitas opções em seções. Ideal quando há mais de 3 opções.
+
+🍔 Cardápio Completo
+Menu de restaurante organizado por categorias.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "🍔 Cardápio Completo",
+  "body": "Escolha uma categoria para ver os itens disponíveis",
+  "footer": "Delivery - Taxa grátis acima de R$ 50",
+  "buttonText": "📋 Ver Cardápio",
+  "sections": [
+    {
+      "title": "🍔 Hambúrgueres",
+      "rows": [
+        { "id": "burger_classico", "title": "Clássico", "description": "Pão, carne 180g, queijo, alface, tomate - R$ 28,90" },
+        { "id": "burger_bacon", "title": "Bacon Lovers", "description": "Pão, carne 180g, bacon crocante, cheddar - R$ 34,90" },
+        { "id": "burger_vegano", "title": "Veggie Burger", "description": "Pão integral, hambúrguer de grão de bico - R$ 32,90" }
+      ]
+    },
+    {
+      "title": "🍕 Pizzas",
+      "rows": [
+        { "id": "pizza_margherita", "title": "Margherita", "description": "Molho, mussarela, tomate, manjericão - R$ 49,90" },
+        { "id": "pizza_pepperoni", "title": "Pepperoni", "description": "Molho, mussarela, pepperoni - R$ 54,90" },
+        { "id": "pizza_4queijos", "title": "Quatro Queijos", "description": "Mussarela, gorgonzola, parmesão, catupiry - R$ 59,90" }
+      ]
+    },
+    {
+      "title": "🥤 Bebidas",
+      "rows": [
+        { "id": "bebida_refri", "title": "Refrigerante 350ml", "description": "Coca, Guaraná, Sprite - R$ 6,90" },
+        { "id": "bebida_suco", "title": "Suco Natural 500ml", "description": "Laranja, Limão, Maracujá - R$ 12,90" },
+        { "id": "bebida_agua", "title": "Água Mineral", "description": "Com ou sem gás - R$ 4,90" }
+      ]
+    }
+  ]
+}
+🏢 Departamentos da Empresa
+Direcionar cliente para o setor correto.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "🏢 Central de Atendimento",
+  "body": "Selecione o departamento desejado para ser direcionado ao atendente especializado.",
+  "footer": "Empresa XYZ - Atendimento Humanizado",
+  "buttonText": "📞 Escolher Departamento",
+  "sections": [
+    {
+      "title": "💼 Comercial",
+      "rows": [
+        { "id": "comercial_orcamento", "title": "Solicitar Orçamento", "description": "Receba uma proposta personalizada" },
+        { "id": "comercial_catalogo", "title": "Catálogo de Produtos", "description": "Conheça nossa linha completa" },
+        { "id": "comercial_parceria", "title": "Seja um Parceiro", "description": "Programa de revendedores" }
+      ]
+    },
+    {
+      "title": "🔧 Suporte Técnico",
+      "rows": [
+        { "id": "suporte_instalacao", "title": "Instalação", "description": "Ajuda com instalação do produto" },
+        { "id": "suporte_problema", "title": "Reportar Problema", "description": "Produto com defeito ou erro" },
+        { "id": "suporte_garantia", "title": "Garantia", "description": "Informações sobre garantia" }
+      ]
+    },
+    {
+      "title": "💰 Financeiro",
+      "rows": [
+        { "id": "financeiro_boleto", "title": "2ª Via de Boleto", "description": "Solicitar nova via do boleto" },
+        { "id": "financeiro_nota", "title": "Nota Fiscal", "description": "Solicitar nota fiscal" },
+        { "id": "financeiro_pagamento", "title": "Formas de Pagamento", "description": "Opções disponíveis" }
+      ]
+    }
+  ]
+}
+📅 Agendamento de Serviços
+Seleção de serviço e horário para agendamento.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "💇 Agende seu Horário",
+  "body": "Escolha o serviço desejado. Após a seleção, enviaremos os horários disponíveis.",
+  "footer": "Salão Beauty Hair - Desde 2010",
+  "buttonText": "✂️ Ver Serviços",
+  "sections": [
+    {
+      "title": "✂️ Cortes",
+      "rows": [
+        { "id": "corte_feminino", "title": "Corte Feminino", "description": "A partir de R$ 80,00 - 45min" },
+        { "id": "corte_masculino", "title": "Corte Masculino", "description": "R$ 45,00 - 30min" },
+        { "id": "corte_infantil", "title": "Corte Infantil", "description": "R$ 35,00 - 20min" }
+      ]
+    },
+    {
+      "title": "🎨 Coloração",
+      "rows": [
+        { "id": "cor_tintura", "title": "Tintura Completa", "description": "A partir de R$ 150,00 - 2h" },
+        { "id": "cor_mechas", "title": "Mechas/Luzes", "description": "A partir de R$ 200,00 - 3h" },
+        { "id": "cor_retoque", "title": "Retoque de Raiz", "description": "R$ 80,00 - 1h" }
+      ]
+    },
+    {
+      "title": "💅 Unhas",
+      "rows": [
+        { "id": "unha_manicure", "title": "Manicure", "description": "R$ 35,00 - 40min" },
+        { "id": "unha_pedicure", "title": "Pedicure", "description": "R$ 40,00 - 50min" },
+        { "id": "unha_combo", "title": "Combo Mani + Pedi", "description": "R$ 65,00 - 1h30" }
+      ]
+    }
+  ]
+}
+❓ FAQ - Perguntas Frequentes
+Autoatendimento com dúvidas mais comuns.
+
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "title": "❓ Central de Ajuda",
+  "body": "Encontre respostas para as dúvidas mais frequentes ou fale com um atendente.",
+  "footer": "Suporte 24 horas",
+  "buttonText": "🔍 Buscar Ajuda",
+  "sections": [
+    {
+      "title": "📦 Pedidos e Entregas",
+      "rows": [
+        { "id": "faq_rastrear", "title": "Rastrear meu pedido", "description": "Acompanhe sua entrega em tempo real" },
+        { "id": "faq_prazo", "title": "Prazo de entrega", "description": "Quanto tempo demora para chegar?" },
+        { "id": "faq_frete", "title": "Calcular frete", "description": "Valores e opções de envio" }
+      ]
+    },
+    {
+      "title": "💳 Pagamentos",
+      "rows": [
+        { "id": "faq_formas", "title": "Formas de pagamento", "description": "Cartão, boleto, Pix e mais" },
+        { "id": "faq_parcelamento", "title": "Parcelamento", "description": "Em quantas vezes posso parcelar?" },
+        { "id": "faq_cupom", "title": "Usar cupom de desconto", "description": "Como aplicar meu cupom" }
+      ]
+    },
+    {
+      "title": "🔄 Trocas e Devoluções",
+      "rows": [
+        { "id": "faq_trocar", "title": "Trocar produto", "description": "Política de troca" },
+        { "id": "faq_devolver", "title": "Devolver produto", "description": "Como solicitar devolução" },
+        { "id": "faq_reembolso", "title": "Prazo de reembolso", "description": "Quando recebo meu dinheiro?" }
+      ]
+    },
+    {
+      "title": "👤 Minha Conta",
+      "rows": [
+        { "id": "faq_senha", "title": "Esqueci minha senha", "description": "Recuperar acesso à conta" },
+        { "id": "faq_dados", "title": "Alterar dados cadastrais", "description": "Atualizar endereço, telefone, etc" },
+        { "id": "faq_atendente", "title": "Falar com atendente", "description": "Transferir para humano" }
+      ]
+    }
+  ]
+}
+📢 Canais (Newsletter)
+NOVO
+Endpoints para gerenciar canais do WhatsApp (Newsletter). Crie, siga e gerencie canais de difusão.
+
+POST
+/api/instances/{id}/newsletter/create
+Cria um novo canal do WhatsApp.
+
+name	string	obrigatório	Nome do canal
+description	string	opcional	Descrição do canal
+picture	base64	opcional	Imagem do canal em base64
+ Copiar
+{
+  "name": "Meu Canal de Notícias",
+  "description": "Atualizações diárias sobre tecnologia"
+}
+POST
+/api/instances/{id}/newsletter/{jid}/follow
+Segue um canal do WhatsApp.
+
+POST
+/api/instances/{id}/newsletter/{jid}/unfollow
+Deixa de seguir um canal.
+
+GET
+/api/instances/{id}/newsletter/{jid}
+Obtém informações de um canal.
+
+GET
+/api/instances/{id}/newsletter/subscribed
+Lista todos os canais que você está seguindo.
+
+GET
+/api/instances/{id}/newsletter/{jid}/messages
+Obtém mensagens de um canal.
+
+count	int	opcional	Quantidade de mensagens (padrão: 10)
+before	string	opcional	ID da mensagem para paginação
+POST
+/api/instances/{id}/newsletter/{jid}/mute
+Silencia ou ativa notificações de um canal.
+
+ Copiar
+{ "mute": true }
+👤 Usuários Avançado
+NOVO
+Endpoints para obter informações detalhadas de usuários.
+
+GET
+/api/instances/{id}/users/{jid}
+Obtém informações completas de um usuário (avatar, status, dispositivos).
+
+Resposta:
+ Copiar
+{
+  "jid": "5511999999999@s.whatsapp.net",
+  "verified_name": "João Silva",
+  "picture_id": "1234567890",
+  "devices": ["5511999999999:1@s.whatsapp.net"],
+  "status": "Disponível"
+}
+GET
+/api/instances/{id}/users/{jid}/business
+Obtém perfil comercial de um usuário (para contas business).
+
+Resposta:
+ Copiar
+{
+  "description": "Loja de eletrônicos",
+  "email": "contato@loja.com",
+  "website": ["https://loja.com"],
+  "category": "Loja de Eletrônicos",
+  "address": "Rua Exemplo, 123"
+}
+POST
+/api/instances/{id}/users/{jid}/presence/subscribe
+Inscreve-se para receber atualizações de presença (online/offline) de um usuário via webhook.
+
+📞 Chamadas
+NOVO
+Endpoints para gerenciar chamadas de voz e vídeo.
+
+POST
+/api/instances/{id}/calls/reject
+Rejeita uma chamada recebida.
+
+ Copiar
+{
+  "callId": "ABC123DEF456",
+  "from": "5511999999999@s.whatsapp.net"
+}
+ Dica: Combine com a configuração rejectCalls: true para rejeitar chamadas automaticamente.
+
+🔒 Privacidade
+NOVO
+Endpoints para gerenciar configurações de privacidade.
+
+GET
+/api/instances/{id}/privacy-settings
+Obtém configurações de privacidade atuais.
+
+Resposta:
+ Copiar
+{
+  "lastSeen": "contacts",
+  "profilePhoto": "all",
+  "status": "contacts",
+  "readReceipts": "all",
+  "groupAdd": "contacts",
+  "online": "all",
+  "callAdd": "all"
+}
+POST
+/api/instances/{id}/privacy-settings
+Atualiza uma configuração de privacidade.
+
+setting	string	obrigatório	lastSeen, profilePhoto, status, readReceipts, groupAdd, online, callAdd
+value	string	obrigatório	all, contacts, contact_blacklist, match_last_seen, none
+ Copiar
+{
+  "setting": "lastSeen",
+  "value": "contacts"
+}
+👥 Grupos Avançado
+NOVO
+Endpoints avançados para gerenciamento de grupos e comunidades.
+
+POST
+/api/instances/{id}/groups/{groupId}/photo
+Atualiza a foto do grupo.
+
+ Copiar
+{
+  "image": "data:image/jpeg;base64,/9j/4AAQ..."
+}
+GET
+/api/instances/{id}/groups/{groupId}/requests
+Lista solicitações pendentes de entrada no grupo.
+
+POST
+/api/instances/{id}/groups/{groupId}/requests
+Aprova ou rejeita solicitações de entrada.
+
+ Copiar
+{
+  "participants": ["5511999999999@s.whatsapp.net"],
+  "action": "approve"  // ou "reject"
+}
+POST
+/api/instances/{id}/groups/{groupId}/link
+Vincula um grupo a uma comunidade.
+
+ Copiar
+{
+  "communityJid": "123456789@g.us"
+}
+POST
+/api/instances/{id}/groups/{groupId}/unlink
+Desvincula um grupo de uma comunidade.
+
+⚡ Eventos de Webhook
+ATUALIZADO
+Lista completa de eventos disponíveis para webhook.
+
+Evento	Categoria	Descrição
+messages	Mensagens	Mensagens recebidas/enviadas
+message_status	Mensagens	Status (enviado, entregue, lido)
+message_reaction	Mensagens	Reações com emoji
+qr	Conexão	QR Code gerado
+connection	Conexão	Conectado/Desconectado
+group_update	Grupos	Atualizações de grupo
+group_participants	Grupos	Participantes adicionados/removidos
+group_requests	Grupos	Solicitações de entrada NOVO
+community	Grupos	Eventos de comunidade NOVO
+presence	Contatos	Presença online/offline
+contacts	Contatos	Atualizações de contatos
+call	Chamadas	Chamadas voz/vídeo recebidas
+call_rejected	Chamadas	Chamada rejeitada automaticamente NOVO
+chats	Chamadas	Atualizações de chats
+labels	Outros	Labels/Etiquetas
+history_sync	Outros	Sincronização de histórico
+privacy_updated	Outros	Configuração de privacidade alterada NOVO
+newsletter	Canais	Mensagens de canal NOVO
+newsletter_follow	Canais	Novo seguidor no canal NOVO
+utm.detected	Marketing	UTM detectado na mensagem
+all	Todos	Receber todos os eventos
+ Correspondência por Prefixo
+Ao selecionar um evento, você também receberá sub-eventos. Por exemplo:
+
+messages → messages, messages.upsert, messages.update, etc.
+group_update → group_update, group_update.photo, group_update.topic, etc.

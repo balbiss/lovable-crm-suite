@@ -7,6 +7,8 @@ export interface User {
   email: string;
   role: Role;
   avatar: string;
+  companyName?: string;
+  orgId?: string;
 }
 
 export interface Lead {
@@ -22,17 +24,16 @@ export interface Lead {
   tags: string[];
   // Niche-specific fields
   imobiliaria?: { tipo: string; bairro: string; valor: string };
-  clinica?: { procedimento: string; convenio: string };
-  carros?: { modelo: string; ano: string; financiamento: string };
+  clinica?: { procedimento: string; convenio: string; valor?: string };
+  carros?: { modelo: string; ano: string; financiamento: string; valor?: string };
 }
 
 export type KanbanStage =
   | "novo"
   | "qualificacao"
+  | "visita"
   | "proposta"
-  | "negociacao"
-  | "ganho"
-  | "perdido";
+  | "fechado";
 
 export interface Message {
   id: string;

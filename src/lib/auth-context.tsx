@@ -1,44 +1,79 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { User } from "./types";
-import { MOCK_USERS } from "./mock-data";
+import type { User, Role } from "./types";
+import { supabase } from "./supabase";
 
 interface AuthContextValue {
   user: User | null;
-  login: (userId: string) => void;
-  logout: () => void;
+  loading: boolean;
+  logout: () => Promise<void>;
   isAdmin: boolean;
   canAccess: (path: string) => boolean;
+  setRole: (role: Role) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-const STORAGE_KEY = "crm_demo_user";
 
 const ADMIN_ONLY_PATHS = ["/configuracoes", "/faturamento"];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const id = window.localStorage.getItem(STORAGE_KEY);
-    if (id) {
-      const found = MOCK_USERS.find((u) => u.id === id);
-      if (found) setUser(found);
-    }
+    // Check active session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const mappedUser = await mapSupabaseUser(session.user);
+        setUser(mappedUser);
+      }
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        const mappedUser = await mapSupabaseUser(session.user);
+        setUser(mappedUser);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (userId: string) => {
-    const found = MOCK_USERS.find((u) => u.id === userId);
-    if (found) {
-      setUser(found);
-      window.localStorage.setItem(STORAGE_KEY, found.id);
+  const mapSupabaseUser = async (sbUser: any): Promise<User> => {
+    console.log("Mapeando usuário Supabase:", sbUser.id);
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("org_id, full_name, role")
+      .eq("id", sbUser.id)
+      .single();
+
+    if (error) {
+      console.error("Erro ao buscar perfil no Supabase:", error);
     }
+    
+    console.log("Perfil encontrado:", profile);
+
+    const metadata = sbUser.user_metadata || {};
+    const mapped = {
+      id: sbUser.id,
+      name: profile?.full_name || metadata.full_name || metadata.name || sbUser.email?.split("@")[0] || "Usuário",
+      email: sbUser.email || "",
+      role: (profile?.role as Role) || (metadata.role as Role) || "vendedor",
+      avatar: metadata.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${sbUser.id}`,
+      companyName: metadata.company || metadata.company_name || "Minha Empresa",
+      orgId: profile?.org_id || metadata.org_id,
+    };
+    
+    console.log("Usuário mapeado final:", mapped);
+    return mapped;
   };
 
-  const logout = () => {
-    setUser(null);
-    window.localStorage.removeItem(STORAGE_KEY);
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   const isAdmin = user?.role === "admin";
@@ -49,8 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const setRole = (role: Role) => {
+    if (user) {
+      setUser({ ...user, role });
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin, canAccess }}>
+    <AuthContext.Provider value={{ user, loading, logout, isAdmin, canAccess, setRole }}>
       {children}
     </AuthContext.Provider>
   );

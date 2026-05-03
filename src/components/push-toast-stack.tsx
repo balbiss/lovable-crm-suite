@@ -18,7 +18,7 @@ export function PushToastStack() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-primary">
-                  Nexora CRM
+                  InoovaWeb CRM
                 </span>
                 <span className="text-[10px] text-muted-foreground">agora</span>
               </div>
