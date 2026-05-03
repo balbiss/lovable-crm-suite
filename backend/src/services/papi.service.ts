@@ -107,7 +107,7 @@ export class PapiService {
   /**
    * Configura o webhook de uma instância na PAPI
    */
-  static async configureWebhook(instanceId: string, webhookUrl: string, events = ['messages', 'message_status']) {
+  static async configureWebhook(instanceId: string, webhookUrl: string, events = ['messages', 'message_status', 'message_reaction', 'presence', 'contacts', 'history_sync']) {
     const id = instanceId.toLowerCase();
     try {
       const response = await papiClient.post(`/api/instances/${id}/webhook`, {

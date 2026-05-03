@@ -14,6 +14,27 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
   console.log(`[WEBHOOK] Evento recebido para instância ${instanceId}:`, payload?.type);
 
   try {
+    // Processa eventos de status de mensagem (entregue, lida, etc)
+    if (payload?.type === 'message_status') {
+      const { id: papiMessageId, status } = payload.data;
+      console.log(`[WEBHOOK] Status de mensagem ${papiMessageId}: ${status}`);
+      
+      const { data: updatedMsg } = await supabase
+        .from('messages')
+        .update({ status: status })
+        .eq('papi_message_id', papiMessageId)
+        .select()
+        .single();
+      
+      if (updatedMsg) {
+        broadcastToOrg(updatedMsg.org_id, 'message_status_update', {
+          messageId: updatedMsg.id,
+          status: status
+        });
+      }
+      return res.json({ ok: true });
+    }
+
     // Só processa eventos de mensagem recebida
     if (payload?.type !== 'message') {
       return res.json({ ok: true });
