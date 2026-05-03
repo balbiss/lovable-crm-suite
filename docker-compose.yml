@@ -7,16 +7,23 @@ services:
       - NODE_ENV=production
     env_file:
       - backend/.env
-    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
     networks:
-      - crm_internal
+      - crm_network
 
   redis:
     image: redis:7-alpine
-    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
     networks:
-      - crm_internal
+      - crm_network
 
 networks:
-  crm_internal:
-    driver: bridge
+  crm_network:
+    driver: overlay
+    attachable: true
