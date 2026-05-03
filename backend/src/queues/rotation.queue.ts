@@ -26,17 +26,29 @@ export const rotationWorker = new Worker(
     const { orgId, conversationId, contactName } = job.data;
     console.log(`[Rodízio] Processando lead: ${contactName} (Org: ${orgId})`);
 
-    // 1. Busca vendedores ativos da organização
-    const { data: sellers, error } = await supabase
+    // 1. Busca vendedores da organização (fallback: todos os membros)
+    let { data: sellers, error } = await supabase
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, role')
       .eq('org_id', orgId)
       .eq('role', 'vendedor');
 
+    // Fallback: se não houver vendedores, usa todos os membros da org (incluindo admins)
     if (error || !sellers || sellers.length === 0) {
-      console.warn(`[Rodízio] Nenhum vendedor encontrado para a org ${orgId}`);
+      console.warn(`[Rodízio] Nenhum vendedor na org ${orgId}, usando todos os membros como fallback`);
+      const fallback = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('org_id', orgId);
+      sellers = fallback.data || [];
+    }
+
+    if (!sellers || sellers.length === 0) {
+      console.warn(`[Rodízio] Nenhum membro encontrado para a org ${orgId}. Lead não atribuído.`);
       return { skipped: true };
     }
+
+    console.log(`[Rodízio] ${sellers.length} membro(s) disponível(is):`, sellers.map(s => s.full_name).join(', '));
 
     // 2. Round-Robin via Redis
     const nextIndex = await getNextRotationIndex(orgId, sellers.length);
