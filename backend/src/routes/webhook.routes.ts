@@ -48,35 +48,34 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     const msgData = payload.data?.message;
     if (!msgData) return res.json({ ok: true });
 
-    const jid: string = payload.data?.key?.remoteJid || '';
-    const fromMe: boolean = payload.data?.key?.fromMe || false;
-    const papiMsgId: string = payload.data?.key?.id || '';
+    // Extração flexível (suporta múltiplos formatos da PAPI)
+    const jid: string = payload.data?.key?.remoteJid || msgData.from || msgData.remoteJid || '';
+    const fromMe: boolean = payload.data?.key?.fromMe || msgData.isFromMe || false;
+    const papiMsgId: string = payload.data?.key?.id || msgData.id || '';
     
     // Suporte a conteúdo e mídia
     let content: string = '';
-    let messageType: string = 'text';
+    let messageType: string = msgData.type || 'text';
     let mediaUrl: string | null = null;
 
     // Extrai o conteúdo (texto ou legenda)
-    const rawMessage = payload.data?.message;
-    if (rawMessage) {
-      if (rawMessage.conversation) {
-        content = rawMessage.conversation;
-        messageType = 'text';
-      } else if (rawMessage.imageMessage) {
-        content = rawMessage.imageMessage.caption || '';
-        messageType = 'image';
-      } else if (rawMessage.videoMessage) {
-        content = rawMessage.videoMessage.caption || '';
-        messageType = 'video';
-      } else if (rawMessage.audioMessage) {
-        messageType = 'audio';
-      } else if (rawMessage.documentMessage) {
-        content = rawMessage.documentMessage.title || '';
-        messageType = 'document';
-      } else if (rawMessage.extendedTextMessage) {
-        content = rawMessage.extendedTextMessage.text || '';
-      }
+    if (msgData.body) {
+      content = msgData.body;
+    } else if (msgData.conversation) {
+      content = msgData.conversation;
+    } else if (msgData.imageMessage) {
+      content = msgData.imageMessage.caption || '';
+      messageType = 'image';
+    } else if (msgData.videoMessage) {
+      content = msgData.videoMessage.caption || '';
+      messageType = 'video';
+    } else if (msgData.audioMessage) {
+      messageType = 'audio';
+    } else if (msgData.documentMessage) {
+      content = msgData.documentMessage.title || '';
+      messageType = 'document';
+    } else if (msgData.extendedTextMessage) {
+      content = msgData.extendedTextMessage.text || '';
     }
 
     // Se houver mídia em base64, gera a Data URI
@@ -90,7 +89,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       }
     }
 
-    const contactName: string = payload.data?.pushName || jid.split('@')[0];
+    const contactName: string = payload.data?.pushName || msgData.pushName || jid.split('@')[0];
 
     if (!jid || jid.includes('@g.us')) {
       return res.json({ ok: true }); // ignora grupos
