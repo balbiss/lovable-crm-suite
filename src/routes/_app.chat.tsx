@@ -16,7 +16,10 @@ import {
   Sparkles,
   FileText,
   Check,
-  CheckCheck
+  CheckCheck,
+  StickyNote,
+  Plus,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -166,6 +169,9 @@ function ChatPage() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [summaryModal, setSummaryModal] = useState({ open: false, content: "" });
   const [kanbanStages, setKanbanStages] = useState<any[]>([]);
+  const [showNotes, setShowNotes] = useState(false);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [newNote, setNewNote] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -222,6 +228,7 @@ function ChatPage() {
     activeConvRef.current = activeConv;
     if (activeConv) {
       loadMessages(activeConv.id);
+      loadNotes(activeConv.id);
     }
   }, [activeConv?.id]);
 
@@ -266,6 +273,29 @@ function ChatPage() {
       .order("created_at", { ascending: true });
 
     if (!error && data) setMessages(data);
+  };
+  
+  const loadNotes = async (convId: string) => {
+    const { data } = await supabase
+      .from("conversation_notes")
+      .select("*, profiles(full_name)")
+      .eq("conversation_id", convId)
+      .order("created_at", { ascending: false });
+    if (data) setNotes(data);
+  };
+
+  const addNote = async () => {
+    if (!newNote.trim() || !activeConv) return;
+    const { error } = await supabase.from("conversation_notes").insert({
+      conversation_id: activeConv.id,
+      profile_id: user?.id,
+      content: newNote
+    });
+    if (!error) {
+      setNewNote("");
+      loadNotes(activeConv.id);
+      toast.success("Nota adicionada");
+    }
   };
 
   const openConversation = (conv: any) => {
@@ -399,15 +429,24 @@ function ChatPage() {
 
   const toggleLabel = async (conv: any, stageId: string) => {
     try {
+      const stage = kanbanStages.find(s => s.id === stageId);
+      const isClosing = stage?.title.toLowerCase().includes("fechado") || stage?.title.toLowerCase().includes("perdido") || stageId === "fechado";
+      
+      const updateData: any = { kanban_stage: stageId };
+      if (isClosing) {
+        updateData.ai_enabled = true;
+        updateData.status = "finalizado";
+      }
+
       const { error } = await supabase
         .from("conversations")
-        .update({ kanban_stage: stageId })
+        .update(updateData)
         .eq("id", conv.id);
       
       if (!error) {
-        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, kanban_stage: stageId } : c));
-        if (activeConv?.id === conv.id) setActiveConv({ ...activeConv, kanban_stage: stageId });
-        toast.success("Fase atualizada");
+        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, ...updateData } : c));
+        if (activeConv?.id === conv.id) setActiveConv({ ...activeConv, ...updateData });
+        toast.success(isClosing ? "Lead finalizado e IA reativada" : "Fase atualizada");
       }
     } catch {
       toast.error("Erro ao atualizar fase.");
@@ -594,7 +633,13 @@ function ChatPage() {
                       </div>
                     </>
                   )}
-                </div>
+                <button 
+                  onClick={() => setShowNotes(!showNotes)} 
+                  className={cn("p-2 rounded-full transition-colors", showNotes ? "bg-amber-100 text-amber-600" : "hover:bg-black/5")} 
+                  title="Notas Internas"
+                >
+                  <StickyNote className="size-5" />
+                </button>
                 <button onClick={() => deleteConversation(activeConv.id)} className="p-2 rounded-full hover:bg-rose-50 text-[#54656f] hover:text-rose-500 transition-colors"><Trash2 className="size-5" /></button>
               </div>
             </header>
@@ -640,6 +685,56 @@ function ChatPage() {
           </>
         )}
       </div>
+
+      {/* Painel de Notas Laterais */}
+      {showNotes && activeConv && (
+        <div className="w-80 bg-[#fefce8] border-l border-amber-200 flex flex-col animate-in slide-in-from-right duration-300">
+          <div className="p-4 border-b border-amber-200 flex items-center justify-between bg-amber-100/50">
+            <h3 className="font-bold text-amber-900 flex items-center gap-2">
+              <StickyNote className="size-4" /> Notas Internas
+            </h3>
+            <button onClick={() => setShowNotes(false)} className="p-1 hover:bg-amber-200 rounded-lg">
+              <X className="size-4 text-amber-700" />
+            </button>
+          </div>
+          
+          <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+            <div className="bg-white/50 rounded-xl p-3 border border-amber-200">
+              <textarea 
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Adicionar observação..."
+                className="w-full bg-transparent border-0 focus:ring-0 text-sm resize-none h-20 placeholder:text-amber-800/40"
+              />
+              <button 
+                onClick={addNote}
+                disabled={!newNote.trim()}
+                className="w-full mt-2 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="size-3" /> Salvar Nota
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {notes.map(note => (
+                <div key={note.id} className="bg-amber-50 rounded-lg p-3 border border-amber-100 shadow-sm relative group">
+                  <div className="text-xs text-amber-900 leading-relaxed mb-2">{note.content}</div>
+                  <div className="flex items-center justify-between opacity-60">
+                    <div className="text-[9px] font-bold uppercase text-amber-800">{note.profiles?.full_name || "Sistema"}</div>
+                    <div className="text-[9px] text-amber-700">{new Date(note.created_at).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              ))}
+              {notes.length === 0 && (
+                <div className="text-center py-10 opacity-30">
+                  <StickyNote className="size-10 mx-auto mb-2" />
+                  <div className="text-xs">Nenhuma nota ainda</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <SummaryModal 
         isOpen={summaryModal.open} 
