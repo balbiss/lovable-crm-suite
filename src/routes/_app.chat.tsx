@@ -656,8 +656,8 @@ function ChatPage() {
                   )}
                 </div>
                 <button 
-                  onClick={() => setShowNotes(!showNotes)} 
-                  className={cn("p-2 rounded-full transition-colors", showNotes ? "bg-amber-100 text-amber-600" : "hover:bg-black/5")} 
+                  onClick={() => setIsNoteOpen(!isNoteOpen)} 
+                  className={cn("p-2 rounded-full transition-colors", isNoteOpen ? "bg-amber-100 text-amber-600" : "hover:bg-black/5")} 
                   title="Notas Internas"
                 >
                   <StickyNote className="size-5" />
@@ -709,13 +709,13 @@ function ChatPage() {
       </div>
 
       {/* Painel de Notas Laterais */}
-      {showNotes && activeConv && (
+      {isNoteOpen && activeConv && (
         <div className="w-80 bg-[#fefce8] border-l border-amber-200 flex flex-col animate-in slide-in-from-right duration-300">
           <div className="p-4 border-b border-amber-200 flex items-center justify-between bg-amber-100/50">
             <h3 className="font-bold text-amber-900 flex items-center gap-2">
               <StickyNote className="size-4" /> Notas Internas
             </h3>
-            <button onClick={() => setShowNotes(false)} className="p-1 hover:bg-amber-200 rounded-lg">
+            <button onClick={() => setIsNoteOpen(false)} className="p-1 hover:bg-amber-200 rounded-lg">
               <X className="size-4 text-amber-700" />
             </button>
           </div>
