@@ -40,30 +40,26 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       return res.json({ ok: true });
     }
 
-    // Só processa eventos de mensagem recebida
-    if (!['messages', 'message'].includes(type)) {
+    // Só processa eventos de mensagem (messages.upsert, messages.update, etc)
+    if (!type.startsWith('messages') && type !== 'message') {
       return res.json({ ok: true });
     }
 
-    const msgData = payload.data;
-    const jid: string = msgData?.key?.remoteJid ?? '';
-    const fromMe: boolean = msgData?.key?.fromMe ?? false;
+    const msgData = payload.data?.message;
+    if (!msgData) return res.json({ ok: true });
+
+    const jid: string = msgData.from || msgData.key?.remoteJid || '';
+    const fromMe: boolean = msgData.isFromMe || msgData.key?.fromMe || false;
+    const papiMsgId: string = msgData.id || msgData.key?.id || '';
     
-    // Suporte a mídia (Base64)
-    let content: string = '';
-    let messageType: string = 'text';
+    // Suporte a conteúdo e mídia
+    let content: string = msgData.body || '';
+    let messageType: string = msgData.type || 'text';
     let mediaUrl: string | null = null;
 
-    if (msgData?.media?.base64) {
+    if (msgData.media?.base64 && !content) {
       messageType = msgData.media.mimetype?.split('/')[0] || 'document';
-      content = msgData.message?.imageMessage?.caption 
-        || msgData.message?.videoMessage?.caption 
-        || `[${messageType}]`;
-      // No futuro, podemos fazer upload do base64 para o Supabase Storage e salvar a URL em mediaUrl
-    } else {
-      content = msgData?.message?.conversation
-        || msgData?.message?.extendedTextMessage?.text
-        || '';
+      content = `[Mídia: ${messageType}]`;
     }
 
     const contactName: string = msgData?.pushName || jid.split('@')[0];
