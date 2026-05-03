@@ -11,25 +11,47 @@ RUN bun install
 COPY . .
 RUN bun run build
 
-# Stage 2: Runtime
+# Stage 2: Runtime (Nginx + Bun)
 FROM oven/bun:1-slim
+
+# Instala o Nginx
+RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copia TUDO do build
-COPY --from=build /app ./
+# Copia o build do estágio anterior
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./
 
-# ARRANJO DE PASTAS: O Vinxi espera que os assets fiquem em uma pasta acessível
-# Vamos garantir que dist/client seja linkado como a pasta de arquivos estáticos
-RUN mkdir -p .output && \
-    ln -s ../dist/server .output/server && \
-    ln -s ../dist/client .output/public
+# Configuração do Nginx para servir assets e fazer proxy para o Bun
+RUN echo 'server { \
+    listen 80; \
+    server_name localhost; \
+    root /app/dist/client; \
+    index index.html; \
+    location /assets/ { \
+        alias /app/dist/client/assets/; \
+        expires 1y; \
+        add_header Cache-Control "public"; \
+    } \
+    location / { \
+        proxy_pass http://localhost:3000; \
+        proxy_http_version 1.1; \
+        proxy_set_header Upgrade $http_upgrade; \
+        proxy_set_header Connection "upgrade"; \
+        proxy_set_header Host $host; \
+        proxy_set_header X-Real-IP $remote_addr; \
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
+        proxy_set_header X-Forwarded-Proto $scheme; \
+    } \
+}' > /etc/nginx/sites-available/default
 
-EXPOSE 3000
+EXPOSE 80
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Rodamos a partir do link que criamos para manter a compatibilidade
-CMD ["bun", "run", ".output/server/index.js"]
+# Inicia o Nginx e o Bun juntos
+CMD ["sh", "-c", "nginx && bun run dist/server/index.js"]
