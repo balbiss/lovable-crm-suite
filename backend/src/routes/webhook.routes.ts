@@ -75,11 +75,16 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     let orgId = await cacheGet<string>(cacheKey);
 
     if (!orgId) {
-      const { data: org } = await supabase
+      const { data: org, error: orgError } = await supabase
         .from('organizations')
         .select('id')
         .eq('papi_instance_id', normalizedId)
         .single();
+
+      if (orgError) {
+        console.error('[WEBHOOK] Erro ao buscar org por instância:', orgError.message);
+        return res.json({ ok: true });
+      }
 
       if (!org) {
         console.warn(`[WEBHOOK] Nenhuma org encontrada para instância ${instanceId}`);
@@ -90,7 +95,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     }
 
     // Upsert da conversa
-    const { data: conv } = await supabase
+    const { data: conv, error: convError } = await supabase
       .from('conversations')
       .upsert(
         {
@@ -107,12 +112,18 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       .select()
       .single();
 
+    if (convError) {
+      console.error('[WEBHOOK] Erro ao dar upsert na conversa:', convError.message);
+      return res.json({ ok: true });
+    }
+
     if (!conv) return res.json({ ok: true });
 
     // Incrementa unread se não for do agente
     if (!fromMe) {
       const { error: rpcError } = await supabase.rpc('increment_unread', { conv_id: conv.id });
       if (rpcError) {
+        console.warn('[WEBHOOK] Erro no RPC increment_unread:', rpcError.message);
         // Fallback: atualiza diretamente
         await supabase.from('conversations')
           .update({ unread_count: (conv.unread_count ?? 0) + 1 })
@@ -121,7 +132,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     }
 
     // Salva a mensagem
-    const { data: savedMsg } = await supabase
+    const { data: savedMsg, error: msgError } = await supabase
       .from('messages')
       .insert({
         conversation_id: conv.id,
@@ -134,6 +145,11 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       })
       .select()
       .single();
+
+    if (msgError) {
+      console.error('[WEBHOOK] Erro ao salvar mensagem no Supabase:', msgError.message);
+      return res.json({ ok: true });
+    }
 
     // Broadcast em tempo real via SSE
     if (savedMsg && orgId) {
