@@ -48,21 +48,49 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     const msgData = payload.data?.message;
     if (!msgData) return res.json({ ok: true });
 
-    const jid: string = msgData.from || msgData.key?.remoteJid || '';
-    const fromMe: boolean = msgData.isFromMe || msgData.key?.fromMe || false;
-    const papiMsgId: string = msgData.id || msgData.key?.id || '';
+    const jid: string = payload.data?.key?.remoteJid || '';
+    const fromMe: boolean = payload.data?.key?.fromMe || false;
+    const papiMsgId: string = payload.data?.key?.id || '';
     
     // Suporte a conteúdo e mídia
-    let content: string = msgData.body || '';
-    let messageType: string = msgData.type || 'text';
+    let content: string = '';
+    let messageType: string = 'text';
     let mediaUrl: string | null = null;
 
-    if (msgData.media?.base64 && !content) {
-      messageType = msgData.media.mimetype?.split('/')[0] || 'document';
-      content = `[Mídia: ${messageType}]`;
+    // Extrai o conteúdo (texto ou legenda)
+    const rawMessage = payload.data?.message;
+    if (rawMessage) {
+      if (rawMessage.conversation) {
+        content = rawMessage.conversation;
+        messageType = 'text';
+      } else if (rawMessage.imageMessage) {
+        content = rawMessage.imageMessage.caption || '';
+        messageType = 'image';
+      } else if (rawMessage.videoMessage) {
+        content = rawMessage.videoMessage.caption || '';
+        messageType = 'video';
+      } else if (rawMessage.audioMessage) {
+        messageType = 'audio';
+      } else if (rawMessage.documentMessage) {
+        content = rawMessage.documentMessage.title || '';
+        messageType = 'document';
+      } else if (rawMessage.extendedTextMessage) {
+        content = rawMessage.extendedTextMessage.text || '';
+      }
     }
 
-    const contactName: string = msgData?.pushName || jid.split('@')[0];
+    // Se houver mídia em base64, gera a Data URI
+    if (payload.data?.media?.base64) {
+      const mime = payload.data.media.mimetype || 'image/jpeg';
+      mediaUrl = `data:${mime};base64,${payload.data.media.base64}`;
+      
+      // Se for mídia e não tiver conteúdo de texto, coloca um placeholder
+      if (!content && messageType !== 'text') {
+        content = `[Mídia: ${messageType}]`;
+      }
+    }
+
+    const contactName: string = payload.data?.pushName || jid.split('@')[0];
 
     if (!jid || jid.includes('@g.us')) {
       return res.json({ ok: true }); // ignora grupos
@@ -138,6 +166,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
         papi_message_id: papiMsgId,
         org_id: orgId,
         content,
+        media_url: mediaUrl,
         is_from_me: fromMe,
         type: messageType,
         status: fromMe ? 2 : 1,

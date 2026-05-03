@@ -44,6 +44,7 @@ interface Message {
   conversation_id: string;
   org_id: string;
   content: string | null;
+  media_url: string | null;
   is_from_me: boolean;
   type: string;
   status: number;
@@ -197,11 +198,14 @@ function ChatPage() {
     }
   }, [messages.length, activeConv?.id]);
 
-  // Envia mensagem
-  const sendMessage = async () => {
-    if (!draft.trim() || !activeConv || !instanceId) return;
-    const text = draft.trim();
-    setDraft("");
+  // Envia mensagem (texto ou mídia)
+  const sendMessage = async (content?: string, type: string = "text", mediaUrl?: string) => {
+    if (!activeConv || !instanceId) return;
+    
+    const finalContent = content || draft.trim();
+    if (!finalContent && !mediaUrl) return;
+
+    if (type === "text") setDraft("");
     setSending(true);
 
     // Otimistic update
@@ -209,9 +213,10 @@ function ChatPage() {
       id: `temp-${Date.now()}`,
       conversation_id: activeConv.id,
       org_id: orgId!,
-      content: text,
+      content: finalContent,
+      media_url: mediaUrl || null,
       is_from_me: true,
-      type: "text",
+      type: type,
       status: 1,
       created_at: new Date().toISOString(),
     };
@@ -226,7 +231,9 @@ function ChatPage() {
           conversationId: activeConv.id,
           instanceId,
           jid: activeConv.jid,
-          content: text,
+          content: finalContent,
+          type,
+          mediaUrl,
           orgId,
         }),
       });
@@ -238,13 +245,12 @@ function ChatPage() {
         setConversations((prev) =>
           prev.map((c) =>
             c.id === activeConv.id
-              ? { ...c, last_message_preview: text, last_message_at: new Date().toISOString() }
+              ? { ...c, last_message_preview: finalContent || `[Mídia: ${type}]`, last_message_at: new Date().toISOString() }
               : c
           ).sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
         );
       } else {
         toast.error("Erro ao enviar mensagem.");
-        // Remove otimistic
         setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
       }
     } catch {
@@ -253,6 +259,27 @@ function ChatPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 16 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Limite de 16MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      const fileType = file.type.split('/')[0];
+      const finalType = ['image', 'video', 'audio'].includes(fileType) ? fileType : 'document';
+      
+      await sendMessage("", finalType, base64);
+      e.target.value = "";
+    };
+    reader.readAsDataURL(file);
   };
 
   const filtered = conversations.filter((c) => {
@@ -405,8 +432,18 @@ function ChatPage() {
                   Configure uma instância WhatsApp nas Configurações para enviar mensagens.
                 </div>
               )}
-              <div className="flex items-end gap-2">
-                <button className="p-2.5 rounded-xl hover:bg-accent text-muted-foreground">
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e)}
+                  accept="image/*,video/*,audio/*,application/pdf"
+                />
+                <button 
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                  disabled={sending || !instanceId}
+                  className="p-2.5 rounded-xl hover:bg-accent text-muted-foreground disabled:opacity-50"
+                >
                   <Paperclip className="size-5" />
                 </button>
                 <textarea
@@ -425,7 +462,7 @@ function ChatPage() {
                 />
                 {draft.trim() ? (
                   <button
-                    onClick={sendMessage}
+                    onClick={() => sendMessage()}
                     disabled={sending || !instanceId}
                     className="p-2.5 rounded-xl bg-gradient-primary text-primary-foreground shadow-soft hover:opacity-95 active:scale-95 transition disabled:opacity-60"
                   >
@@ -469,19 +506,33 @@ function MessageBubble({ message }: { message: Message }) {
             : "bg-card border border-border rounded-bl-md"
         )}
       >
-        {message.type === 'image' && (
-          <div className="mb-2 rounded-lg overflow-hidden bg-muted">
-            <img 
-              src={message.content?.startsWith('http') ? message.content : `data:image/jpeg;base64,${message.content}`} 
-              alt="Mídia" 
-              className="max-w-full h-auto object-contain"
-            />
+        {message.media_url && (
+          <div className="mb-2 rounded-lg overflow-hidden bg-muted/50">
+            {message.type === 'image' && (
+              <img src={message.media_url} alt="Mídia" className="max-w-full h-auto object-contain cursor-pointer hover:opacity-90" onClick={() => window.open(message.media_url!, '_blank')} />
+            )}
+            {message.type === 'video' && (
+              <video src={message.media_url} controls className="max-w-full h-auto" />
+            )}
+            {message.type === 'audio' && (
+              <audio src={message.media_url} controls className="w-full max-w-[240px] h-10" />
+            )}
+            {message.type === 'document' && (
+              <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 hover:bg-accent/50 transition-colors">
+                <FileText className="size-8 text-primary" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">Documento</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">{message.media_url.split(';')[0].split('/')[1] || 'PDF'}</p>
+                </div>
+              </a>
+            )}
           </div>
         )}
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-          {message.type === 'text' ? message.content : (message.content?.startsWith('http') ? '' : message.content)}
-          {message.type !== 'text' && !message.content && `[${message.type}]`}
-        </p>
+        {message.content && message.type !== 'audio' && (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {message.content}
+          </p>
+        )}
         <div
           className={cn(
             "flex items-center gap-1 justify-end mt-1 text-[10px]",

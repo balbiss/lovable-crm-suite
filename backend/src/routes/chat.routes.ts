@@ -90,15 +90,32 @@ router.get('/conversations/:conversationId/messages', async (req, res) => {
 
 /** Envia mensagem via PAPI e salva no banco */
 router.post('/send', async (req, res) => {
-  const { conversationId, instanceId, jid, content, orgId } = req.body;
+  const { conversationId, instanceId, jid, content, type = 'text', mediaUrl, orgId } = req.body;
 
-  if (!conversationId || !instanceId || !jid || !content) {
-    return res.status(400).json({ error: 'conversationId, instanceId, jid e content são obrigatórios' });
+  if (!conversationId || !instanceId || !jid || (!content && !mediaUrl)) {
+    return res.status(400).json({ error: 'Dados insuficientes para enviar mensagem' });
   }
 
   try {
-    // 1. Envia via PAPI
-    await PapiService.sendText(instanceId, jid, content);
+    let papiResponse;
+
+    // 1. Envia via PAPI de acordo com o tipo
+    switch (type) {
+      case 'image':
+        papiResponse = await PapiService.sendImage(instanceId, jid, { base64: mediaUrl?.split(',')[1] || mediaUrl, caption: content });
+        break;
+      case 'video':
+        papiResponse = await PapiService.sendVideo(instanceId, jid, { base64: mediaUrl?.split(',')[1] || mediaUrl, caption: content });
+        break;
+      case 'audio':
+        papiResponse = await PapiService.sendAudio(instanceId, jid, { base64: mediaUrl?.split(',')[1] || mediaUrl, ptt: true });
+        break;
+      case 'document':
+        papiResponse = await PapiService.sendDocument(instanceId, jid, { url: mediaUrl, filename: 'documento' });
+        break;
+      default:
+        papiResponse = await PapiService.sendText(instanceId, jid, content);
+    }
 
     // 2. Salva no banco como mensagem enviada
     const { data: savedMsg, error } = await supabase
@@ -106,10 +123,12 @@ router.post('/send', async (req, res) => {
       .insert({
         conversation_id: conversationId,
         org_id: orgId,
-        content,
+        content: content || (type !== 'text' ? `[Mídia: ${type}]` : ''),
+        media_url: mediaUrl,
         is_from_me: true,
-        type: 'text',
+        type: type,
         status: 2, // enviado
+        papi_message_id: papiResponse?.messageId
       })
       .select()
       .single();
@@ -120,7 +139,7 @@ router.post('/send', async (req, res) => {
     await supabase
       .from('conversations')
       .update({
-        last_message_preview: content,
+        last_message_preview: content || `[Mídia: ${type}]`,
         last_message_at: new Date().toISOString(),
       })
       .eq('id', conversationId);
