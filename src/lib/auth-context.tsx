@@ -50,10 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from("profiles")
       .select("org_id, full_name, role")
       .eq("id", sbUser.id)
-      .single();
+      .maybeSingle(); // Usar maybeSingle para não disparar erro se não existir
 
     if (error) {
-      console.error("Erro ao buscar perfil no Supabase:", error);
+      console.warn("Aviso: Falha ao carregar perfil do banco (pode ser RLS):", error.message);
     }
     
     console.log("Perfil encontrado:", profile);
