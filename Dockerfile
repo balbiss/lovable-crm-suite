@@ -19,14 +19,11 @@ WORKDIR /app
 # Copia TUDO do build
 COPY --from=build /app ./
 
-# Garante que a pasta de saída seja sempre .output (mesmo que venha como dist)
-RUN if [ -d "dist" ] && [ ! -d ".output" ]; then ln -s dist .output; fi
-
 EXPOSE 3000
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Comando flexível que tenta mjs e depois js
-CMD ["sh", "-c", "if [ -f .output/server/index.mjs ]; then node .output/server/index.mjs; elif [ -f .output/server/index.js ]; then node .output/server/index.js; else echo 'ERRO: Servidor nao encontrado em .output/server/'; ls -R .output; exit 1; fi"]
+# DIAGNÓSTICO: Lista arquivos e tenta rodar, mas não morre imediatamente
+CMD ["sh", "-c", "echo '--- CONTEUDO DA PASTA APP ---'; ls -la; echo '--- PROCURANDO BUILD ---'; ls -R .output 2>/dev/null || ls -R dist 2>/dev/null || echo 'Nao achei .output nem dist'; if [ -f .output/server/index.mjs ]; then node .output/server/index.mjs; elif [ -f .output/server/index.js ]; then node .output/server/index.js; elif [ -f dist/server/index.js ]; then node dist/server/index.js; else echo 'ERRO FATAL: Servidor nao encontrado'; fi; sleep 60"]
