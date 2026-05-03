@@ -115,4 +115,29 @@ export class AIService {
       return null;
     }
   }
+
+  /**
+   * Gera uma mensagem de follow-up (acompanhamento)
+   */
+  static async generateFollowUp(history: string) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'Você é um assistente de vendas. Com base no histórico da conversa, gere uma mensagem curta e amigável de acompanhamento para o cliente, pois ele não responde há algum tempo. Não use emojis em excesso.'
+          },
+          {
+            role: 'user',
+            content: `Histórico:\n${history}`
+          }
+        ],
+      });
+      return response.choices[0].message.content;
+    } catch (error: any) {
+      console.error('[AI] Erro ao gerar follow-up:', error.message);
+      return null;
+    }
+  }
 }

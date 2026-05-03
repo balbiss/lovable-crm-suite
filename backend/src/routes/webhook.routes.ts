@@ -148,7 +148,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
 
     // 2. Se não tem foto, tenta buscar na PAPI
     if (!avatarUrl && !fromMe) {
-      avatarUrl = await PapiService.getProfilePicture(instanceId as string, jid);
+      avatarUrl = await PapiService.getProfilePicture(String(instanceId), String(jid));
     }
 
     // 3. Upsert da conversa com o avatar
@@ -233,7 +233,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
         
         if (conv.ai_enabled) {
           // 1. Simula digitando imediatamente
-          PapiService.sendPresence(instanceId, jid, 'composing').catch(() => {});
+          PapiService.sendPresence(String(instanceId), String(jid), 'composing').catch(() => {});
 
           // 2. Aguarda 9 segundos (Delay Humano)
           console.log(`[IA] Aguardando 9 segundos antes de responder ${jid}...`);
@@ -269,7 +269,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
             
             // Envia via PAPI
             try {
-              const sendRes = await PapiService.sendText(instanceId, jid, aiReply);
+              const sendRes = await PapiService.sendText(String(instanceId), String(jid), aiReply);
 
               if (sendRes) {
                 // Salva a resposta da IA no banco

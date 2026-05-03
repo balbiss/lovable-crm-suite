@@ -298,6 +298,20 @@ export class PapiService {
   }
 
   /**
+   * Obtém a foto de perfil de um contato ou grupo
+   */
+  static async getProfilePicture(instanceId: string, jid: string) {
+    const id = instanceId.toLowerCase();
+    try {
+      const response = await papiClient.get(`/api/instances/${id}/profile-picture/${jid}`);
+      return response.data?.url || null;
+    } catch (error: any) {
+      console.error(`Error getting profile picture for ${jid}:`, error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  /**
    * Envia status de presença (digitando, gravando áudio, etc)
    */
   static async sendPresence(instanceId: string, jid: string, presence: 'composing' | 'recording' | 'paused') {
