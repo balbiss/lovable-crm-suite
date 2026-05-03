@@ -74,16 +74,16 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       content = msgData.body;
     } else if (msgData.conversation) {
       content = msgData.conversation;
-    } else if (msgData.imageMessage) {
-      content = msgData.imageMessage.caption || '';
+    } else if (msgData.imageMessage || msgData.type === 'image') {
+      content = msgData.imageMessage?.caption || msgData.caption || '';
       messageType = 'image';
-    } else if (msgData.videoMessage) {
-      content = msgData.videoMessage.caption || '';
+    } else if (msgData.videoMessage || msgData.type === 'video') {
+      content = msgData.videoMessage?.caption || msgData.caption || '';
       messageType = 'video';
-    } else if (msgData.audioMessage) {
+    } else if (msgData.audioMessage || msgData.type === 'audio') {
       messageType = 'audio';
-    } else if (msgData.documentMessage) {
-      content = msgData.documentMessage.title || '';
+    } else if (msgData.documentMessage || msgData.type === 'document') {
+      content = msgData.documentMessage?.title || msgData.filename || '';
       messageType = 'document';
     } else if (msgData.extendedTextMessage) {
       content = msgData.extendedTextMessage.text || '';
@@ -97,13 +97,18 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       // Se for áudio, tenta transcrever via Whisper
       if (messageType === 'audio') {
         try {
-          const buffer = Buffer.from(payload.data.media.base64, 'base64');
-          const transcription = await AIService.transcribe(buffer);
-          if (transcription) {
-            content = `[Transcrição]: ${transcription}`;
+          console.log(`[WEBHOOK] Transcrevendo áudio para ${jid}...`);
+          const base64Data = payload.data.media.base64 || msgData.media?.base64;
+          if (base64Data) {
+            const buffer = Buffer.from(base64Data, 'base64');
+            const transcription = await AIService.transcribe(buffer);
+            if (transcription) {
+              console.log(`[WEBHOOK] Transcrição concluída: "${transcription}"`);
+              content = `[Áudio Transcrito]: ${transcription}`;
+            }
           }
         } catch (err: any) {
-          console.warn('[WEBHOOK] Falha na transcrição:', err.message);
+          console.error('[WEBHOOK] Falha na transcrição:', err.message);
         }
       }
 
