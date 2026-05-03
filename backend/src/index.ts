@@ -15,6 +15,7 @@ app.use(express.json());
 import papiRoutes from './routes/papi.routes';
 import chatRoutes from './routes/chat.routes';
 import webhookRoutes from './routes/webhook.routes';
+import aiRoutes from './routes/ai.routes';
 
 // Inicializa o Worker de rodízio (Redis/BullMQ) ao subir o servidor
 import './queues/rotation.queue';
@@ -30,6 +31,9 @@ app.use('/api/chat', chatRoutes);
 
 // Webhook PAPI + SSE — recebe eventos PAPI e broadcasta em tempo real
 app.use('/api/webhook', webhookRoutes);
+
+// IA e Base de Conhecimento
+app.use('/api/ai', aiRoutes);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {

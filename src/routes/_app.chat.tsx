@@ -143,20 +143,59 @@ function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (orgId) {
-      loadConversations();
-      loadSellers();
-      fetchInstance();
-    }
+    if (!orgId) return;
+
+    loadConversations();
+    loadSellers();
+    fetchInstance();
+
+    // Conexão SSE para Tempo Real
+    console.log("[SSE] Conectando...");
+    const eventSource = new EventSource(`${API_URL}/chat/sse/${orgId}`);
+
+    eventSource.addEventListener("new_message", (e: any) => {
+      const data = JSON.parse(e.data);
+      console.log("[SSE] Nova mensagem recebida:", data);
+      
+      // Se a mensagem for da conversa ativa, atualiza as mensagens
+      if (activeConvRef.current?.id === data.message.conversation_id) {
+        setMessages(prev => {
+          // Evita duplicatas
+          if (prev.find(m => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+      }
+
+      // Atualiza a lista de conversas (posiciona no topo e atualiza preview)
+      setConversations(prev => {
+        const otherConvs = prev.filter(c => c.id !== data.conversation.id);
+        return [data.conversation, ...otherConvs];
+      });
+    });
+
+    eventSource.addEventListener("message_status_update", (e: any) => {
+      const data = JSON.parse(e.data);
+      setMessages(prev => prev.map(m => m.id === data.messageId ? { ...m, status: data.status } : m));
+    });
+
+    eventSource.onerror = (err) => {
+      console.error("[SSE] Erro na conexão. Reconectando em 5s...", err);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log("[SSE] Desconectando...");
+      eventSource.close();
+    };
   }, [orgId]);
 
+  // Ref para activeConv para ser usado dentro do listener do SSE sem dependências circulares
+  const activeConvRef = useRef(activeConv);
   useEffect(() => {
-    let interval: any;
+    activeConvRef.current = activeConv;
     if (activeConv) {
       loadMessages(activeConv.id);
-      interval = setInterval(() => loadMessages(activeConv.id), 5000);
     }
-    return () => clearInterval(interval);
   }, [activeConv?.id]);
 
   useEffect(() => {
@@ -235,6 +274,8 @@ function ChatPage() {
       if (res.ok) {
         setInputText("");
         loadMessages(activeConv.id);
+        // Atualiza localmente que a IA foi pausada
+        if (activeConv) setActiveConv({ ...activeConv, ai_enabled: false });
       } else {
         const err = await res.json();
         toast.error(err.error || "Erro ao enviar.");
@@ -243,6 +284,55 @@ function ChatPage() {
       toast.error("Erro de conexão.");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSuggest = async () => {
+    if (!activeConv || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${API_URL}/ai/suggest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: activeConv.id, orgId }),
+      });
+      const data = await res.json();
+      if (data.suggestion) {
+        setInputText(data.suggestion);
+      }
+    } catch {
+      toast.error("Erro ao obter sugestão.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSummarize = async () => {
+    if (!activeConv) return;
+    const toastId = toast.loading("IA resumindo conversa...");
+    try {
+      const res = await fetch(`${API_URL}/ai/summarize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: activeConv.id }),
+      });
+      const data = await res.json();
+      if (data.summary) {
+        toast.dismiss(toastId);
+        alert(`Resumo da Conversa:\n\n${data.summary}`);
+      }
+    } catch {
+      toast.error("Erro ao resumir.");
+    }
+  };
+
+  const toggleAI = async () => {
+    if (!activeConv) return;
+    const newState = !activeConv.ai_enabled;
+    const { error } = await supabase.from("conversations").update({ ai_enabled: newState }).eq("id", activeConv.id);
+    if (!error) {
+      setActiveConv({ ...activeConv, ai_enabled: newState });
+      toast.success(newState ? "IA Reativada" : "IA Pausada");
     }
   };
 
@@ -399,15 +489,23 @@ function ChatPage() {
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[#111b21] truncate flex items-center gap-2">
                   {activeConv.contact_name || activeConv.contact_phone}
-                  {activeConv.assigned_to && (
-                    <span className="text-[10px] bg-[#f0f2f5] px-2 py-0.5 rounded-full font-medium text-[#667781]">
-                      {sellers.find(s => s.id === activeConv.assigned_to)?.full_name || "Atendente"}
-                    </span>
-                  )}
+                  <button 
+                    onClick={toggleAI}
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 transition-colors",
+                      activeConv.ai_enabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    )}
+                  >
+                    <Brain className="size-3" />
+                    {activeConv.ai_enabled ? "IA ATIVA" : "IA PAUSADA"}
+                  </button>
                 </div>
                 <div className="text-xs text-[#667781] truncate">Online</div>
               </div>
               <div className="flex items-center gap-2 text-[#54656f]">
+                <button onClick={handleSummarize} className="p-2 rounded-full hover:bg-black/5" title="Resumo da IA">
+                  <FileText className="size-5" />
+                </button>
                 <div className="relative">
                   <button 
                     onClick={() => setActiveMenu(activeMenu === 'assign' ? null : 'assign')}
@@ -493,6 +591,14 @@ function ChatPage() {
                   placeholder="Digite uma mensagem"
                   className="flex-1 py-2 text-sm bg-transparent border-0 focus:ring-0 outline-none text-[#111b21]"
                 />
+                <button 
+                  onClick={handleSuggest}
+                  disabled={sending}
+                  className="p-2 rounded-full hover:bg-primary/5 text-primary transition-colors"
+                  title="Sugerir resposta com IA"
+                >
+                  <Sparkles className="size-5" />
+                </button>
                 <button 
                   onClick={() => sendMessage(inputText)}
                   disabled={sending || (!inputText.trim())}

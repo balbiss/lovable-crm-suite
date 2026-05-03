@@ -2,8 +2,10 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { cacheGet, cacheSet } from '../lib/redis';
 import { enqueueRotation } from '../queues/rotation.queue';
+import { scheduleFollowUp } from '../queues/follow-up.queue';
 import { PapiService } from '../services/papi.service';
 import { broadcastToOrg } from './chat.routes';
+import { AIService } from '../services/ai.service';
 
 const router = Router();
 
@@ -84,6 +86,19 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       const mime = payload.data.media.mimetype || 'image/jpeg';
       mediaUrl = `data:${mime};base64,${payload.data.media.base64}`;
       
+      // Se for áudio, tenta transcrever via Whisper
+      if (messageType === 'audio') {
+        try {
+          const buffer = Buffer.from(payload.data.media.base64, 'base64');
+          const transcription = await AIService.transcribe(buffer);
+          if (transcription) {
+            content = `[Transcrição]: ${transcription}`;
+          }
+        } catch (err: any) {
+          console.warn('[WEBHOOK] Falha na transcrição:', err.message);
+        }
+      }
+
       // Se for mídia e não tiver conteúdo de texto, coloca um placeholder
       if (!content && messageType !== 'text') {
         content = `[Mídia: ${messageType}]`;
@@ -206,10 +221,23 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
         },
       });
 
-      // Se for mensagem nova de contato (não do agente), enfileira rodízio
-      if (!fromMe && !conv.assigned_to) {
-        enqueueRotation(orgId, conv.id, contactName).catch((err: Error) =>
-          console.warn('[WEBHOOK] Rodízio não enfileirado:', err.message)
+      // Se for mensagem nova de contato (não do agente)
+      if (!fromMe) {
+        // Atualiza carimbo de tempo da última mensagem do cliente
+        await supabase.from('conversations')
+          .update({ last_customer_message_at: new Date().toISOString() })
+          .eq('id', conv.id);
+
+        // Enfileira rodízio se não houver atendente
+        if (!conv.assigned_to) {
+          enqueueRotation(orgId, conv.id, contactName).catch((err: Error) =>
+            console.warn('[WEBHOOK] Rodízio não enfileirado:', err.message)
+          );
+        }
+
+        // Agenda Follow-up (ex: 2 horas = 7200000ms)
+        scheduleFollowUp(conv.id, 2 * 60 * 60 * 1000).catch(err => 
+          console.warn('[WEBHOOK] Follow-up não agendado:', err.message)
         );
       }
     }

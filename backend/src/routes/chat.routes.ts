@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { PapiService } from '../services/papi.service';
 import { enqueueRotation } from '../queues/rotation.queue';
+import { scheduleFollowUp } from '../queues/follow-up.queue';
 
 const router = Router();
 
@@ -138,12 +139,13 @@ router.post('/send', async (req, res) => {
 
     if (error) throw error;
 
-    // 3. Atualiza preview da conversa
+    // 3. Atualiza preview da conversa e desativa IA por intervenção humana
     await supabase
       .from('conversations')
       .update({
         last_message_preview: content || `[Mídia: ${type}]`,
         last_message_at: new Date().toISOString(),
+        ai_enabled: false // Desativa IA ao detectar intervenção humana
       })
       .eq('id', conversationId);
 

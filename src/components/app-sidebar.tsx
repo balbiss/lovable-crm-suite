@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { to: "/chat", label: "Chat Central", icon: MessagesSquare },
   { to: "/kanban", label: "Funil de Vendas", icon: KanbanSquare },
   { to: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
+  { to: "/configuracoes-ia", label: "Cérebro da IA", icon: Sparkles, adminOnly: true },
   { to: "/faturamento", label: "Faturamento", icon: CreditCard, adminOnly: true },
 ];
 
@@ -109,6 +110,26 @@ export function AppSidebar() {
               VENDEDOR
             </button>
           </div>
+
+          <button
+            onClick={async () => {
+              const newStatus = !user?.online_status;
+              const { error } = await supabase.from("profiles").update({ online_status: newStatus }).eq("id", user?.id);
+              if (!error) {
+                // Atualiza o contexto local (se possível) ou apenas recarrega
+                window.location.reload(); 
+              }
+            }}
+            className={cn(
+              "flex items-center justify-center gap-2 w-full py-2 rounded-lg border text-[10px] font-bold transition-all",
+              user?.online_status 
+                ? "bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" 
+                : "bg-slate-50 border-slate-200 text-slate-500"
+            )}
+          >
+            <div className={cn("size-2 rounded-full", user?.online_status ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+            {user?.online_status ? "VOCÊ ESTÁ ONLINE" : "FICAR ONLINE"}
+          </button>
         </div>
       </div>
     </aside>

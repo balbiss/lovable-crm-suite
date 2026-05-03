@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, LayoutDashboard, GripVertical, Palette } from "lucide-react";
 
 export const Route = createFileRoute("/_app/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — InoovaWeb CRM" }] }),
@@ -33,9 +33,9 @@ const API = import.meta.env.VITE_API_URL || "https://api-crminoovaweb.inoovaweb.
 
 const TABS = [
   { id: "whatsapp", label: "WhatsApp", icon: Webhook },
-  { id: "ia", label: "Prompt da IA", icon: Sparkles },
+  { id: "kanban", label: "Kanban", icon: LayoutDashboard },
+  { id: "ia", label: "IA & Automação", icon: Sparkles },
   { id: "conhecimento", label: "Conhecimento", icon: Database },
-  { id: "followup", label: "Follow-up", icon: Clock },
   { id: "rodizio", label: "Equipe", icon: Users },
 ] as const;
 
@@ -86,9 +86,9 @@ function ConfigPage() {
 
         <div className="rounded-2xl bg-card border border-border shadow-soft p-6">
           {tab === "whatsapp" && <PapiSettings />}
+          {tab === "kanban" && <KanbanSettings />}
           {tab === "ia" && <AiPromptSettings />}
           {tab === "conhecimento" && <KnowledgeBaseSettings />}
-          {tab === "followup" && <FollowupSettings />}
           {tab === "rodizio" && <RotationSettings />}
 
           <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
@@ -640,27 +640,60 @@ function AiPromptSettings() {
 }
 
 function KnowledgeBaseSettings() {
-  const [files, setFiles] = useState([
-    { id: "1", name: "Tabela_Precos_Inoova_2024.pdf", size: "1.2 MB", date: "02/05/2024" },
-    { id: "2", name: "FAQ_Atendimento_v2.txt", size: "15 KB", date: "01/05/2024" },
-  ]);
+  const { orgId } = useAuth();
+  const [files, setFiles] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles) return;
+  useEffect(() => {
+    if (orgId) loadFiles();
+  }, [orgId]);
 
-    const newFiles = Array.from(selectedFiles).map((file) => ({
-      id: Math.random().toString(36).substr(2, 9),
-      name: file.name,
-      size: (file.size / 1024 / 1024).toFixed(1) + " MB",
-      date: new Date().toLocaleDateString("pt-BR"),
-    }));
-
-    setFiles([...newFiles, ...files]);
+  const loadFiles = async () => {
+    const { data } = await supabase
+      .from("company_knowledge")
+      .select("id, title, file_type, created_at")
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false });
+    if (data) setFiles(data);
   };
 
-  const removeFile = (id: string) => setFiles(files.filter((f) => f.id !== id));
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || !orgId) return;
+
+    setUploading(true);
+    for (const file of Array.from(selectedFiles)) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("orgId", orgId);
+      formData.append("title", file.name);
+
+      try {
+        const res = await fetch(`${API}/ai/knowledge/upload`, {
+          method: "POST",
+          body: formData,
+        });
+        if (res.ok) {
+          toast.success(`${file.name} indexado!`);
+        } else {
+          toast.error(`Erro ao indexar ${file.name}`);
+        }
+      } catch (err) {
+        toast.error("Erro de conexão.");
+      }
+    }
+    setUploading(false);
+    loadFiles();
+  };
+
+  const removeFile = async (id: string) => {
+    const { error } = await supabase.from("company_knowledge").delete().eq("id", id);
+    if (!error) {
+      toast.success("Documento removido.");
+      loadFiles();
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -679,13 +712,18 @@ function KnowledgeBaseSettings() {
       />
 
       <div 
-        onClick={() => fileInputRef.current?.click()}
-        className="flex flex-col items-center justify-center border-2 border-dashed border-primary/20 rounded-2xl p-12 bg-primary/5 hover:bg-primary/10 transition-all cursor-pointer group"
+        onClick={() => !uploading && fileInputRef.current?.click()}
+        className={cn(
+          "flex flex-col items-center justify-center border-2 border-dashed border-primary/20 rounded-2xl p-12 bg-primary/5 hover:bg-primary/10 transition-all cursor-pointer group",
+          uploading && "opacity-50 cursor-wait"
+        )}
       >
         <div className="size-14 rounded-2xl bg-primary text-primary-foreground grid place-items-center mb-4 shadow-glow group-hover:scale-110 transition-transform">
-          <Upload className="size-6" />
+          {uploading ? <Loader2 className="size-6 animate-spin" /> : <Upload className="size-6" />}
         </div>
-        <h3 className="text-lg font-semibold text-primary">Escolher PDF/TXT para indexar</h3>
+        <h3 className="text-lg font-semibold text-primary">
+          {uploading ? "Indexando arquivos..." : "Escolher PDF/TXT para indexar"}
+        </h3>
         <p className="text-sm text-muted-foreground mt-1">
           Arraste e solte ou clique para selecionar arquivos (máx. 10MB)
         </p>
@@ -716,11 +754,11 @@ function KnowledgeBaseSettings() {
                   <FileText className="size-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">{f.name}</div>
+                  <div className="text-sm font-semibold truncate">{f.title}</div>
                   <div className="text-[10px] text-muted-foreground flex items-center gap-2">
-                    <span>{f.size}</span>
+                    <span className="uppercase">{f.file_type.split("/")[1]}</span>
                     <span className="size-1 rounded-full bg-border" />
-                    <span>Indexado em {f.date}</span>
+                    <span>Indexado em {new Date(f.created_at).toLocaleDateString("pt-BR")}</span>
                   </div>
                 </div>
                 <button
@@ -738,40 +776,97 @@ function KnowledgeBaseSettings() {
   );
 }
 
-function FollowupSettings() {
-  const rules = [
-    { delay: "30 min", channel: "WhatsApp", trigger: "Sem resposta após 1ª mensagem", on: true },
-    { delay: "2 h", channel: "WhatsApp", trigger: "Sem resposta após qualificação", on: true },
-    { delay: "1 dia", channel: "Email", trigger: "Proposta enviada sem retorno", on: true },
-    { delay: "3 dias", channel: "WhatsApp", trigger: "Última tentativa antes de marcar como frio", on: false },
-  ];
+
+function KanbanSettings() {
+  const { orgId } = useAuth();
+  const [stages, setStages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (orgId) load();
+  }, [orgId]);
+
+  const load = async () => {
+    const { data } = await supabase.from("organizations").select("kanban_config").eq("id", orgId).single();
+    if (data?.kanban_config) {
+      setStages(data.kanban_config);
+    } else {
+      setStages([
+        { id: "novo", title: "Novos Leads", color: "bg-blue-500" },
+        { id: "qualificacao", title: "Em Qualificação", color: "bg-orange-500" },
+        { id: "visita", title: "Visita Agendada", color: "bg-violet-500" },
+        { id: "proposta", title: "Proposta Enviada", color: "bg-indigo-500" },
+        { id: "fechado", title: "Fechamento", color: "bg-emerald-500" },
+      ]);
+    }
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    const { error } = await supabase.from("organizations").update({ kanban_config: stages }).eq("id", orgId);
+    if (!error) toast.success("Fluxo do Kanban salvo!");
+    else toast.error("Erro ao salvar.");
+  };
+
+  const addStage = () => {
+    const id = "stage_" + Math.random().toString(36).substr(2, 4);
+    setStages([...stages, { id, title: "Nova Etapa", color: "bg-slate-400" }]);
+  };
+
+  const removeStage = (id: string) => {
+    setStages(stages.filter(s => s.id !== id));
+  };
+
+  const updateStage = (id: string, field: string, value: string) => {
+    setStages(stages.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
   return (
-    <div className="space-y-5">
-      <SectionHeader
-        title="Regras de Follow-up automático"
-        description="A IA executa essas regras quando os leads ficam sem resposta."
-      />
-      <div className="space-y-2">
-        {rules.map((r, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-4 px-4 py-3 rounded-xl border border-border bg-muted/40"
-          >
-            <div className="size-10 rounded-xl bg-card border border-border grid place-items-center text-primary shrink-0">
-              <Clock className="size-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-sm">Após {r.delay}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
-                  {r.channel}
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5">{r.trigger}</div>
-            </div>
-            <Switch defaultChecked={r.on} />
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <SectionHeader 
+          title="Personalização do Kanban" 
+          description="Defina as etapas do seu funil de vendas. Os leads podem ser arrastados entre essas colunas." 
+        />
+        <Button onClick={addStage} variant="outline" className="rounded-xl">
+          <Plus className="size-4 mr-2" /> Adicionar Coluna
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {stages.map((stage, index) => (
+          <div key={stage.id} className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card shadow-sm group">
+            <div className="text-muted-foreground"><GripVertical className="size-4" /></div>
+            <div className={cn("size-3 rounded-full shrink-0", stage.color)} />
+            <input 
+              className={cn(inputClass, "flex-1 font-bold")} 
+              value={stage.title} 
+              onChange={(e) => updateStage(stage.id, "title", e.target.value)}
+            />
+            <select 
+              className={cn(inputClass, "w-40")}
+              value={stage.color}
+              onChange={(e) => updateStage(stage.id, "color", e.target.value)}
+            >
+              <option value="bg-blue-500">Azul</option>
+              <option value="bg-orange-500">Laranja</option>
+              <option value="bg-violet-500">Roxo</option>
+              <option value="bg-indigo-500">Indigo</option>
+              <option value="bg-emerald-500">Verde</option>
+              <option value="bg-rose-500">Rosa</option>
+              <option value="bg-slate-500">Cinza</option>
+            </select>
+            <button onClick={() => removeStage(stage.id)} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all">
+              <Trash2 className="size-4" />
+            </button>
           </div>
         ))}
+      </div>
+
+      <div className="flex justify-end pt-4">
+        <Button onClick={handleSave} className="rounded-xl px-8 bg-gradient-primary shadow-soft">
+          <Save className="size-4 mr-2" /> Salvar Funil
+        </Button>
       </div>
     </div>
   );

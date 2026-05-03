@@ -26,20 +26,22 @@ export const rotationWorker = new Worker(
     const { orgId, conversationId, contactName } = job.data;
     console.log(`[Rodízio] Processando lead: ${contactName} (Org: ${orgId})`);
 
-    // 1. Busca vendedores da organização (fallback: todos os membros)
+    // 1. Busca vendedores da organização que estão ONLINE
     let { data: sellers, error } = await supabase
       .from('profiles')
       .select('id, full_name, role')
       .eq('org_id', orgId)
-      .eq('role', 'vendedor');
+      .eq('role', 'vendedor')
+      .eq('online_status', true);
 
-    // Fallback: se não houver vendedores, usa todos os membros da org (incluindo admins)
+    // Fallback: se não houver vendedores ONLINE, tentamos qualquer um online (admin)
     if (error || !sellers || sellers.length === 0) {
-      console.warn(`[Rodízio] Nenhum vendedor na org ${orgId}, usando todos os membros como fallback`);
+      console.warn(`[Rodízio] Nenhum vendedor ONLINE na org ${orgId}. Buscando qualquer membro online...`);
       const fallback = await supabase
         .from('profiles')
         .select('id, full_name, role')
-        .eq('org_id', orgId);
+        .eq('org_id', orgId)
+        .eq('online_status', true);
       sellers = fallback.data || [];
     }
 
