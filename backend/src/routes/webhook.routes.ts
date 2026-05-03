@@ -69,14 +69,15 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     }
 
     // Descobre a org pelo instanceId — com cache Redis (TTL: 5min)
-    const cacheKey = `org:by_instance:${instanceId}`;
+    const normalizedId = instanceId.toLowerCase();
+    const cacheKey = `org:by_instance:${normalizedId}`;
     let orgId = await cacheGet<string>(cacheKey);
 
     if (!orgId) {
       const { data: org } = await supabase
         .from('organizations')
         .select('id')
-        .eq('papi_instance_id', instanceId)
+        .eq('papi_instance_id', normalizedId)
         .single();
 
       if (!org) {
