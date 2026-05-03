@@ -319,6 +319,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
           console.warn('[WEBHOOK] Follow-up não agendado:', err.message)
         );
       }
+    }
 
     return res.json({ ok: true });
   } catch (error: any) {
