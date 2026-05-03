@@ -1,4 +1,20 @@
 services:
+  crm-frontend:
+    image: crm-frontend:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.crm-frontend.rule=Host(`painel.inoovaweb.com.br`)"
+        - "traefik.http.routers.crm-frontend.entrypoints=websecure"
+        - "traefik.http.routers.crm-frontend.tls=true"
+        - "traefik.http.routers.crm-frontend.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.crm-frontend.loadbalancer.server.port=80"
+    networks:
+      - inoovawebpro
+
   crm-backend:
     image: crm-backend:latest
     ports:
