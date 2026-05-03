@@ -127,12 +127,14 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
     // Descobre a org pelo instanceId — com cache Redis (TTL: 5min)
     const normalizedId = String(instanceId).toLowerCase();
     const cacheKey = `org:by_instance:${normalizedId}`;
-    let orgId = await cacheGet<string>(cacheKey);
+    let orgDataCache = await cacheGet<any>(cacheKey);
+    let orgId: string;
+    let globalAiEnabled: boolean;
 
-    if (!orgId) {
+    if (!orgDataCache) {
       const { data: org, error: orgError } = await supabase
         .from('organizations')
-        .select('id')
+        .select('id, global_ai_enabled')
         .eq('papi_instance_id', normalizedId)
         .single();
 
@@ -146,7 +148,11 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
         return res.json({ ok: true });
       }
       orgId = org.id;
-      await cacheSet(cacheKey, orgId, 300); // cache por 5 minutos
+      globalAiEnabled = org.global_ai_enabled !== false; // default true
+      await cacheSet(cacheKey, { id: orgId, globalAiEnabled }, 300); // cache por 5 minutos
+    } else {
+      orgId = orgDataCache.id;
+      globalAiEnabled = orgDataCache.globalAiEnabled;
     }
 
     // 1. Busca a conversa existente para ver se já tem foto
@@ -242,9 +248,9 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
           .eq('id', conv.id);
 
         // --- GATILHO DA IA ---
-        console.log(`[IA] Verificando se IA está ativa para conversa ${conv.id}: ${conv.ai_enabled}`);
+        console.log(`[IA] Verificando se IA está ativa para conversa ${conv.id}: ${conv.ai_enabled} (Global: ${globalAiEnabled})`);
         
-        if (conv.ai_enabled) {
+        if (globalAiEnabled && conv.ai_enabled) {
           // 1. Aguarda 3 segundos em silêncio (simulando a leitura da mensagem)
           console.log(`[IA] Simulando leitura para ${jid} (3s)...`);
           await new Promise(resolve => setTimeout(resolve, 3000));

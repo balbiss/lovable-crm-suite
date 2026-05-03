@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { useState, useEffect } from "react";
 
 interface NavItem {
   to: string;
@@ -26,6 +28,73 @@ const NAV: NavItem[] = [
   { to: "/configuracoes-ia", label: "Cérebro da IA", icon: Sparkles, adminOnly: true },
   { to: "/faturamento", label: "Faturamento", icon: CreditCard, adminOnly: true },
 ];
+
+function GlobalAIToggle({ orgId }: { orgId?: string }) {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!orgId) return;
+    
+    async function loadStatus() {
+      const { data } = await supabase
+        .from("organizations")
+        .select("global_ai_enabled")
+        .eq("id", orgId)
+        .single();
+      
+      if (data) setEnabled(data.global_ai_enabled !== false);
+    }
+    loadStatus();
+  }, [orgId]);
+
+  const toggle = async () => {
+    if (!orgId || loading) return;
+    setLoading(true);
+    const newValue = !enabled;
+    
+    const { error } = await supabase
+      .from("organizations")
+      .update({ global_ai_enabled: newValue })
+      .eq("id", orgId);
+    
+    if (!error) {
+      setEnabled(newValue);
+    }
+    setLoading(false);
+  };
+
+  if (enabled === null) return null;
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={loading}
+      className={cn(
+        "flex items-center justify-between w-full p-2.5 rounded-lg border transition-all mb-2",
+        enabled 
+          ? "bg-primary/5 border-primary/20 text-primary shadow-sm" 
+          : "bg-slate-50 border-slate-200 text-slate-500 opacity-80"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Sparkles className={cn("size-3.5", enabled ? "text-primary" : "text-slate-400")} />
+        <span className="text-[10px] font-bold uppercase tracking-wider">
+          {enabled ? "IA GERAL ATIVA" : "IA GERAL DESLIGADA"}
+        </span>
+      </div>
+      <div className={cn(
+        "w-8 h-4 rounded-full relative transition-colors",
+        enabled ? "bg-primary" : "bg-slate-300"
+      )}>
+        <div className={cn(
+          "absolute top-0.5 left-0.5 size-3 bg-white rounded-full transition-transform shadow-sm",
+          enabled ? "translate-x-4" : "translate-x-0"
+        )} />
+      </div>
+    </button>
+  );
+}
 
 export function AppSidebar() {
   const { user, isAdmin, logout, setRole } = useAuth();
@@ -90,29 +159,32 @@ export function AppSidebar() {
             </button>
           </div>
           
-          <div className="flex items-center gap-1 p-1 bg-sidebar-accent/50 rounded-lg">
-            <button
-              onClick={() => setRole("admin")}
-              className={cn(
-                "flex-1 px-2 py-1 text-[10px] font-bold rounded-md transition-all",
-                isAdmin ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              ADMIN
-            </button>
-            <button
-              onClick={() => setRole("vendedor")}
-              className={cn(
-                "flex-1 px-2 py-1 text-[10px] font-bold rounded-md transition-all",
-                !isAdmin ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              VENDEDOR
-            </button>
-          </div>
+          <div className="mt-2">
+            {isAdmin && <GlobalAIToggle orgId={user?.orgId} />}
+            
+            <div className="flex items-center gap-1 p-1 bg-sidebar-accent/50 rounded-lg mb-2">
+              <button
+                onClick={() => setRole("admin")}
+                className={cn(
+                  "flex-1 px-2 py-1 text-[10px] font-bold rounded-md transition-all",
+                  isAdmin ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                ADMIN
+              </button>
+              <button
+                onClick={() => setRole("vendedor")}
+                className={cn(
+                  "flex-1 px-2 py-1 text-[10px] font-bold rounded-md transition-all",
+                  !isAdmin ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                VENDEDOR
+              </button>
+            </div>
 
-          <button
-            onClick={async () => {
+            <button
+              onClick={async () => {
               const newStatus = !user?.online_status;
               const { error } = await supabase.from("profiles").update({ online_status: newStatus }).eq("id", user?.id);
               if (!error) {
