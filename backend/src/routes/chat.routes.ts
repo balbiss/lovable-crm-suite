@@ -149,6 +149,18 @@ router.post('/send', async (req, res) => {
       })
       .eq('id', conversationId);
 
+    if (savedMsg) {
+      broadcastToOrg(orgId, 'new_message', {
+        message: savedMsg,
+        conversation: {
+          id: conversationId,
+          last_message_preview: content || `[Mídia: ${type}]`,
+          last_message_at: new Date().toISOString(),
+          ai_enabled: false
+        }
+      });
+    }
+
     return res.json({ ok: true, message: savedMsg });
   } catch (error: any) {
     console.error('[CHAT] Erro ao enviar mensagem:', error.message);

@@ -240,12 +240,16 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
         console.log(`[IA] Verificando se IA está ativa para conversa ${conv.id}: ${conv.ai_enabled}`);
         
         if (conv.ai_enabled) {
-          // 1. Simula digitando imediatamente
+          // 1. Aguarda 3 segundos em silêncio (simulando a leitura da mensagem)
+          console.log(`[IA] Simulando leitura para ${jid} (3s)...`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          // 2. Inicia o status de "digitando"
           PapiService.sendPresence(String(instanceId), String(jid), 'composing').catch(() => {});
 
-          // 2. Aguarda 9 segundos (Delay Humano)
-          console.log(`[IA] Aguardando 9 segundos antes de responder ${jid}...`);
-          await new Promise(resolve => setTimeout(resolve, 9000));
+          // 3. Aguarda mais 6 segundos (simulando o tempo de escrita)
+          console.log(`[IA] Simulando digitação para ${jid} (6s)...`);
+          await new Promise(resolve => setTimeout(resolve, 6000));
 
           // Busca o prompt da organização
           const { data: orgData } = await supabase
@@ -294,30 +298,22 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
 
               if (sendRes) {
                 // Salva a resposta da IA no banco
-                await supabase.from('messages').insert({
+                const { data: savedAiMsg } = await supabase.from('messages').insert({
                   conversation_id: conv.id,
                   papi_message_id: sendRes.key?.id || `ai_${Date.now()}`,
                   org_id: orgId,
                   content: aiReply,
                   is_from_me: true,
                   type: 'text',
-                  status: 2
-                });
+                  status: 2 // enviado
+                }).select().single();
 
-                // Notifica o frontend
-                broadcastToOrg(orgId, 'new_message', {
-                  message: {
-                    content: aiReply,
-                    is_from_me: true,
-                    created_at: new Date().toISOString(),
-                    type: 'text'
-                  },
-                  conversation: {
-                    ...conv,
-                    last_message_preview: aiReply,
-                    last_message_at: new Date().toISOString()
-                  }
-                });
+                if (savedAiMsg) {
+                  broadcastToOrg(orgId, 'new_message', {
+                    message: savedAiMsg,
+                    conversation: { ...conv, last_message_preview: aiReply, last_message_at: new Date().toISOString() }
+                  });
+                }
               }
             } catch (err: any) {
               console.error('[IA] Erro ao enviar resposta via PAPI:', err.message);
