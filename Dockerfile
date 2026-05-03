@@ -24,7 +24,7 @@ COPY --from=build /app/package*.json ./
 RUN npm install --production
 
 # Copia o build unificado
-COPY --from=build /app/build_output ./build_output
+COPY --from=build /app/build_output ./.output
 
 EXPOSE 3000
 
@@ -32,8 +32,5 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Verifica se o arquivo de build existe antes de rodar
-RUN ls -R build_output/server
-
-# Comando para rodar o servidor
-CMD ["node", "--enable-source-maps", "build_output/server/index.js"]
+# TanStack Start espera que a pasta se chame .output no root
+CMD ["node", ".output/server/index.js"]
