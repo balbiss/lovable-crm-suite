@@ -19,12 +19,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copia apenas o necessário para rodar
-COPY --from=build /app/package*.json ./
-RUN npm install --production
-
-# Copia o build unificado
-COPY --from=build /app/build_output ./.output
+# Em sistemas SSR, às vezes as dependências de build são necessárias no runtime
+COPY --from=build /app ./
 
 EXPOSE 3000
 
@@ -32,5 +28,5 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# TanStack Start espera que a pasta se chame .output no root
-CMD ["node", ".output/server/index.js"]
+# Usa o comando oficial do TanStack Start/Vinxi
+CMD ["npx", "vinxi", "start"]
