@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { AIService } from '../services/ai.service';
 import { supabase } from '../lib/supabase';
 import pdf from 'pdf-parse';
@@ -7,8 +7,13 @@ import multer from 'multer';
 const router = Router();
 const upload = multer();
 
+// Interface para estender o Request do Express com o arquivo do Multer
+interface RequestWithFile extends Request {
+  file?: Express.Multer.File;
+}
+
 // Upload de conhecimento (PDF ou TXT)
-router.post('/knowledge/upload', upload.single('file'), async (req, res) => {
+router.post('/knowledge/upload', upload.single('file'), async (req: RequestWithFile, res: Response) => {
   try {
     const { orgId, title } = req.body;
     const file = req.file;
@@ -20,7 +25,7 @@ router.post('/knowledge/upload', upload.single('file'), async (req, res) => {
     let textContent = '';
 
     if (file.mimetype === 'application/pdf') {
-      const data = await pdf(file.buffer);
+      const data = await (pdf as any)(file.buffer);
       textContent = data.text;
     } else {
       textContent = file.buffer.toString('utf-8');
