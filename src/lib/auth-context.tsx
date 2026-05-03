@@ -7,6 +7,7 @@ interface AuthContextValue {
   loading: boolean;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  orgId: string | undefined;
   canAccess: (path: string) => boolean;
   setRole: (role: Role) => void;
 }
@@ -92,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, isAdmin, canAccess, setRole }}>
+    <AuthContext.Provider value={{ user, loading, logout, isAdmin, orgId: user?.orgId, canAccess, setRole }}>
       {children}
     </AuthContext.Provider>
   );
