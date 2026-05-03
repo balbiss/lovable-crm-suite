@@ -496,7 +496,7 @@ function ChatPage() {
                       activeConv.ai_enabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
                     )}
                   >
-                    <Brain className="size-3" />
+                    <Sparkles className="size-3" />
                     {activeConv.ai_enabled ? "IA ATIVA" : "IA PAUSADA"}
                   </button>
                 </div>
