@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   crm-frontend:
     image: crm-frontend:latest
@@ -57,4 +55,3 @@ services:
 networks:
   inoovawebpro:
     external: true
-    name: inoovawebpro
