@@ -138,6 +138,7 @@ function ChatPage() {
   const [search, setSearch] = useState("");
   const [sending, setSending] = useState(false);
   const [sellers, setSellers] = useState<any[]>([]);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -407,31 +408,65 @@ function ChatPage() {
                 <div className="text-xs text-[#667781] truncate">Online</div>
               </div>
               <div className="flex items-center gap-2 text-[#54656f]">
-                <div className="relative group">
-                  <button className="p-2 rounded-full hover:bg-black/5" title="Atribuir Atendente"><UserPlus className="size-5" /></button>
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border rounded-xl shadow-xl z-50 hidden group-hover:block py-2 animate-in fade-in zoom-in duration-200">
-                    <div className="px-4 py-2 text-[10px] font-bold text-[#667781] uppercase tracking-wider">Enviar Lead Para:</div>
-                    <button onClick={() => assignAtendente(activeConv.id, null, 'rotation')} className="w-full px-4 py-2.5 text-left text-sm hover:bg-[#f5f6f6] flex items-center gap-3 text-primary font-bold">
-                      <Sparkles className="size-4" /> Rodízio Automático
-                    </button>
-                    <div className="h-[1px] bg-border my-1 mx-2" />
-                    {sellers.map(s => (
-                      <button key={s.id} onClick={() => assignAtendente(activeConv.id, s.id, 'manual')} className="w-full px-4 py-2.5 text-left text-sm hover:bg-[#f5f6f6] truncate">
-                        {s.full_name} <span className="text-[9px] opacity-40 ml-1 uppercase">{s.role}</span>
-                      </button>
-                    ))}
-                  </div>
+                <div className="relative">
+                  <button 
+                    onClick={() => setActiveMenu(activeMenu === 'assign' ? null : 'assign')}
+                    className={cn("p-2 rounded-full hover:bg-black/5 transition-colors", activeMenu === 'assign' && "bg-black/10")} 
+                    title="Atribuir Atendente"
+                  >
+                    <UserPlus className="size-5" />
+                  </button>
+                  {activeMenu === 'assign' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setActiveMenu(null)} />
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border rounded-xl shadow-xl z-50 py-2 animate-in fade-in zoom-in duration-200">
+                        <div className="px-4 py-2 text-[10px] font-bold text-[#667781] uppercase tracking-wider">Enviar Lead Para:</div>
+                        <button 
+                          onClick={() => { assignAtendente(activeConv.id, null, 'rotation'); setActiveMenu(null); }} 
+                          className="w-full px-4 py-2.5 text-left text-sm hover:bg-[#f5f6f6] flex items-center gap-3 text-primary font-bold"
+                        >
+                          <Sparkles className="size-4" /> Rodízio Automático
+                        </button>
+                        <div className="h-[1px] bg-border my-1 mx-2" />
+                        {sellers.map(s => (
+                          <button 
+                            key={s.id} 
+                            onClick={() => { assignAtendente(activeConv.id, s.id, 'manual'); setActiveMenu(null); }} 
+                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-[#f5f6f6] truncate"
+                          >
+                            {s.full_name} <span className="text-[9px] opacity-40 ml-1 uppercase">{s.role}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="relative group">
-                  <button className="p-2 rounded-full hover:bg-black/5" title="Etiquetas"><Tag className="size-5" /></button>
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-border rounded-xl shadow-xl z-50 hidden group-hover:block py-2 animate-in fade-in zoom-in duration-200">
-                    {AVAILABLE_LABELS.map(l => (
-                      <button key={l.name} onClick={() => toggleLabel(activeConv, l.name)} className="w-full px-4 py-2.5 text-left text-sm hover:bg-[#f5f6f6] flex items-center justify-between">
-                        <span className="flex items-center gap-2"><div className={cn("size-2.5 rounded-full", l.color)} /> {l.name}</span>
-                        {activeConv.labels?.includes(l.name) && <Check className="size-4 text-emerald-500" />}
-                      </button>
-                    ))}
-                  </div>
+
+                <div className="relative">
+                  <button 
+                    onClick={() => setActiveMenu(activeMenu === 'labels' ? null : 'labels')}
+                    className={cn("p-2 rounded-full hover:bg-black/5 transition-colors", activeMenu === 'labels' && "bg-black/10")} 
+                    title="Etiquetas"
+                  >
+                    <Tag className="size-5" />
+                  </button>
+                  {activeMenu === 'labels' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setActiveMenu(null)} />
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-border rounded-xl shadow-xl z-50 py-2 animate-in fade-in zoom-in duration-200">
+                        {AVAILABLE_LABELS.map(l => (
+                          <button 
+                            key={l.name} 
+                            onClick={() => toggleLabel(activeConv, l.name)} 
+                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-[#f5f6f6] flex items-center justify-between"
+                          >
+                            <span className="flex items-center gap-2"><div className={cn("size-2.5 rounded-full", l.color)} /> {l.name}</span>
+                            {activeConv.labels?.includes(l.name) && <Check className="size-4 text-emerald-500" />}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
                 <button onClick={() => deleteConversation(activeConv.id)} className="p-2 rounded-full hover:bg-rose-50 text-[#54656f] hover:text-rose-500 transition-colors"><Trash2 className="size-5" /></button>
               </div>
