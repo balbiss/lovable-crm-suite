@@ -615,6 +615,7 @@ function KnowledgeBaseSettings() {
     const selectedFiles = e.target.files;
     if (!selectedFiles || !orgId) return;
 
+    console.log("[Knowledge] Iniciando upload para Org:", orgId);
     setUploading(true);
     for (const file of Array.from(selectedFiles)) {
       const formData = new FormData();
@@ -623,17 +624,22 @@ function KnowledgeBaseSettings() {
       formData.append("title", file.name);
 
       try {
+        console.log(`[Knowledge] Enviando arquivo: ${file.name} (${file.size} bytes)`);
         const res = await fetch(`${API}/ai/knowledge/upload`, {
           method: "POST",
           body: formData,
         });
+        
         if (res.ok) {
           toast.success(`${file.name} indexado!`);
         } else {
-          toast.error(`Erro ao indexar ${file.name}`);
+          const errorData = await res.json();
+          console.error("[Knowledge] Erro no servidor:", errorData);
+          toast.error(`Erro ao indexar: ${errorData.error || res.statusText}`);
         }
-      } catch (err) {
-        toast.error("Erro de conexão.");
+      } catch (err: any) {
+        console.error("[Knowledge] Erro de conexão/rede:", err);
+        toast.error(`Erro de conexão: ${err.message}`);
       }
     }
     setUploading(false);

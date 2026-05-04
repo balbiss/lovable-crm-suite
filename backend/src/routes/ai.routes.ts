@@ -19,18 +19,33 @@ router.post('/knowledge/upload', upload.single('file'), async (req: RequestWithF
     const file = req.file;
 
     if (!file || !orgId) {
+      console.warn('[AI] Upload negado: arquivo ou OrgId faltando', { hasFile: !!file, orgId });
       return res.status(400).json({ error: 'Arquivo ou OrgId faltando' });
     }
+
+    console.log(`[AI] Iniciando processamento de arquivo: ${file.originalname} para Org: ${orgId}`);
 
     let textContent = '';
 
     if (file.mimetype === 'application/pdf') {
-      const data = await (pdf as any)(file.buffer);
-      textContent = data.text;
+      try {
+        const data = await (pdf as any)(file.buffer);
+        textContent = data.text;
+        console.log(`[AI] PDF processado. Caracteres extraídos: ${textContent.length}`);
+      } catch (pdfErr: any) {
+        console.error('[AI] Erro ao processar PDF:', pdfErr.message);
+        return res.status(500).json({ error: 'Erro ao processar PDF: ' + pdfErr.message });
+      }
     } else {
       textContent = file.buffer.toString('utf-8');
+      console.log(`[AI] TXT processado. Caracteres extraídos: ${textContent.length}`);
     }
 
+    if (!textContent || textContent.trim().length === 0) {
+      return res.status(400).json({ error: 'O arquivo parece estar vazio ou não pôde ser lido.' });
+    }
+
+    console.log('[AI] Inserindo no banco de dados...');
     const { data, error } = await supabase
       .from('company_knowledge')
       .insert({
@@ -41,11 +56,15 @@ router.post('/knowledge/upload', upload.single('file'), async (req: RequestWithF
       })
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[AI] Erro Supabase:', error);
+      throw error;
+    }
 
+    console.log('[AI] Upload concluído com sucesso!');
     res.json({ success: true, data });
   } catch (error: any) {
-    console.error('[AI] Erro no upload de conhecimento:', error.message);
+    console.error('[AI] Erro fatal no upload:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
