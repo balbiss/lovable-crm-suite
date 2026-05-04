@@ -151,89 +151,16 @@ import {
   RefreshCw
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { 
+  useOrganizationSettings, 
+  usePapiStatus, 
+  usePapiSettings 
+} from "@/hooks/use-organization-settings";
+import { ConfigSkeleton, AiSkeleton } from "@/components/config-skeleton";
+import { useQueryClient } from "@tanstack/react-query";
 
-function PapiSettings() {
-  const { user } = useAuth();
-  const [loadingInitial, setLoadingInitial] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [instanceId, setInstanceId] = useState<string | null>(null);
-  const [status, setStatus] = useState<any>(null);
-  const [qrCode, setQrCode] = useState<string | null>(null);
-  const [newInstanceName, setNewInstanceName] = useState("");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [settings, setSettings] = useState({
-    rejectCalls: false,
-    alwaysOnline: false,
-    readMessages: false,
-    readStatus: false,
-    syncFullHistory: false,
-    ignoreGroups: true,
-    ignoreNewsletters: true,
-  });
-
-  // Busca status de uma instância específica
-  const fetchStatus = async (id: string) => {
-    try {
-      const response = await fetch(`${API}/papi/instances/${id}`);
-      if (response.ok) {
-        const data = await response.json();
-        const instance = data.data || data.instance || data;
-        setStatus(instance);
-        if (instance.status === 'CONNECTED') setQrCode(null);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar status:", error);
-    }
-  };
-
-  // Busca configurações da instância
-  const fetchSettings = async (id: string) => {
-    try {
-      const response = await fetch(`${API}/papi/instances/${id}/settings`);
-      if (response.ok) {
-        const data = await response.json();
-        const s = data.data?.settings || data.settings;
-        if (s) setSettings(s);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar configurações:", error);
-    }
-  };
-
-  // Polling automático enquanto aguarda conexão via QR
-  useEffect(() => {
-    let interval: any;
-    if (instanceId && qrCode && status?.status !== 'CONNECTED') {
-      interval = setInterval(() => fetchStatus(instanceId), 5000);
-    }
-    return () => clearInterval(interval);
-  }, [instanceId, qrCode, status?.status]);
-
-  // Carrega instância da organização ao montar
-  useEffect(() => {
-    const loadOrg = async () => {
-      if (!user?.orgId) { setLoadingInitial(false); return; }
-      try {
-        const { data } = await supabase
-          .from('organizations')
-          .select('papi_instance_id')
-          .eq('id', user.orgId)
-          .single();
-        if (data?.papi_instance_id) {
-          const id = data.papi_instance_id;
-          setInstanceId(id);
-          setLoadingInitial(false);
-          Promise.all([fetchStatus(id), fetchSettings(id)]);
-        } else {
-          setLoadingInitial(false);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar organização:", error);
-        setLoadingInitial(false);
-      }
-    };
-    loadOrg();
-  }, [user]);
+  const isConnected = status?.status === 'CONNECTED';
+  const queryClient = useQueryClient();
 
   // Cria nova instância
   const handleCreateInstance = async () => {
@@ -246,13 +173,10 @@ function PapiSettings() {
         body: JSON.stringify({ instanceId: newInstanceName, orgId: user?.orgId })
       });
       if (response.ok) {
-        const data = await response.json();
-        const id = data.data?.id || newInstanceName;
-        setInstanceId(id);
         setNewInstanceName("");
         setIsCreateModalOpen(false);
         toast.success("Instância criada com sucesso!");
-        setTimeout(() => fetchStatus(id), 1000);
+        queryClient.invalidateQueries({ queryKey: ["org-settings"] });
       } else {
         toast.error("Erro ao criar instância.");
       }
@@ -299,10 +223,10 @@ function PapiSettings() {
         { method: 'DELETE' }
       );
       if (response.ok) {
-        setInstanceId(null);
-        setStatus(null);
         setQrCode(null);
         toast.success("Instância apagada com sucesso!");
+        queryClient.invalidateQueries({ queryKey: ["org-settings"] });
+        queryClient.invalidateQueries({ queryKey: ["papi-status"] });
       } else {
         toast.error("Erro ao apagar instância.");
       }
@@ -316,8 +240,8 @@ function PapiSettings() {
   // Atualiza uma configuração individual
   const handleUpdateSetting = async (key: string, value: boolean) => {
     if (!instanceId) return;
-    const updated = { ...settings, [key]: value };
-    setSettings(updated as any);
+    const updated = { ...(localSettings || {}), [key]: value };
+    setLocalSettings(updated);
     try {
       await fetch(`${API}/papi/instances/${instanceId}/settings`, {
         method: 'POST',
@@ -325,19 +249,11 @@ function PapiSettings() {
         body: JSON.stringify(updated)
       });
       toast.success("Configuração salva!");
+      queryClient.invalidateQueries({ queryKey: ["papi-settings", instanceId] });
     } catch (error) {
       toast.error("Erro ao salvar configuração.");
     }
   };
-
-  if (loadingInitial) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px] gap-3">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        <span className="text-muted-foreground font-medium">Sincronizando com WhatsApp...</span>
-      </div>
-    );
-  }
 
   const isConnected = status?.status === 'CONNECTED';
 
@@ -531,7 +447,7 @@ function PapiSettings() {
                         <p className="text-xs text-muted-foreground">{desc}</p>
                       </div>
                       <Switch
-                        checked={(settings as any)[key]}
+                        checked={localSettings?.[key] || false}
                         onCheckedChange={(v) => handleUpdateSetting(key, v)}
                       />
                     </div>
@@ -557,7 +473,7 @@ function PapiSettings() {
                         <p className="text-xs text-muted-foreground">{desc}</p>
                       </div>
                       <Switch
-                        checked={(settings as any)[key]}
+                        checked={localSettings?.[key] || false}
                         onCheckedChange={(v) => handleUpdateSetting(key, v)}
                       />
                     </div>
@@ -594,28 +510,20 @@ function PapiSettings() {
 
 function AiPromptSettings() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: org, isLoading } = useOrganizationSettings();
+
   const [prompt, setPrompt] = useState("");
   const [tone, setTone] = useState("Amigável");
 
   useEffect(() => {
-    const loadSettings = async () => {
-      if (!user?.orgId) return;
-      const { data } = await supabase
-        .from('organizations')
-        .select('ai_prompt, ai_tone')
-        .eq('id', user.orgId)
-        .single();
-      
-      if (data) {
-        setPrompt(data.ai_prompt || "");
-        setTone(data.ai_tone || "Amigável");
-      }
-      setLoading(false);
-    };
-    loadSettings();
-  }, [user]);
+    if (org) {
+      setPrompt(org.ai_prompt || "");
+      setTone(org.ai_tone || "Amigável");
+    }
+  }, [org]);
 
   const handleSave = async () => {
     if (!user?.orgId) return;
@@ -629,11 +537,12 @@ function AiPromptSettings() {
       toast.error("Erro ao salvar configurações de IA.");
     } else {
       toast.success("Configurações de IA salvas com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["org-settings"] });
     }
     setSaving(false);
   };
 
-  if (loading) return <div className="p-12 text-center text-muted-foreground">Carregando configurações de IA...</div>;
+  if (isLoading && !org) return <AiSkeleton />;
 
   return (
     <div className="space-y-6">
