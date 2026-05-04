@@ -255,7 +255,7 @@ import { useQueryClient } from "@tanstack/react-query";
     }
   };
 
-  const isConnected = status?.status === 'CONNECTED';
+
 
   return (
     <div className="space-y-6">
