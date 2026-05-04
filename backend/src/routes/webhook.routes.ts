@@ -136,7 +136,7 @@ router.post('/:instanceId', async (req: Request, res: Response) => {
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .select('id, global_ai_enabled')
-        .eq('papi_instance_id', normalizedId)
+        .ilike('papi_instance_id', normalizedId)
         .single();
 
       if (orgError) {
